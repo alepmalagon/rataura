@@ -105,6 +105,29 @@ python -m rataura
 python -m rataura.livekit_agent.run
 ```
 
+## Troubleshooting
+
+### Livekit Agent Initialization Timeout
+
+If you encounter an initialization timeout error like this:
+
+```
+livekit.agents - ERROR - initialization timed out, killing process
+```
+
+This can happen because the agent needs more time to initialize resources. The latest version includes:
+
+1. Improved logging to help diagnose initialization issues
+2. Prewarming of the ESI client to avoid delays during job initialization
+3. Increased initialization timeout (30 seconds instead of the default)
+4. Better error handling and validation of required settings
+
+If you still encounter timeout issues, you can try:
+
+1. Check your environment variables are correctly set
+2. Ensure your network connection to Livekit servers is stable
+3. Monitor the logs for specific error messages that might indicate the root cause
+
 ## Development
 
 ```bash
