@@ -4,11 +4,12 @@ A Python Livekit application for a Discord conversational agent that uses LLM fu
 
 ## Overview
 
-Rataura is a Discord bot that allows users to interact with EVE Online game data through natural language queries. The bot uses a large language model (LLM) with function calling capabilities to interpret user queries and fetch relevant data from the EVE Online ESI API.
+Rataura is a Discord bot and Livekit agent that allows users to interact with EVE Online game data through natural language queries. The bot uses a large language model (LLM) with function calling capabilities to interpret user queries and fetch relevant data from the EVE Online ESI API.
 
 ## Features
 
-- Discord integration using Livekit 1.0 RC
+- Discord integration using Discord.py
+- Livekit 1.0 agent for chat interactions
 - Natural language processing of user queries
 - Access to EVE Online ESI API data
 - Support for both public and authenticated ESI endpoints
@@ -42,17 +43,36 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory with the following variables:
 
 ```
+# Discord Bot Configuration
 DISCORD_TOKEN=your_discord_token
+
+# EVE Online ESI API Configuration
 EVE_CLIENT_ID=your_eve_client_id
 EVE_CLIENT_SECRET=your_eve_client_secret
 EVE_CALLBACK_URL=your_callback_url
+
+# LLM Configuration
 LLM_API_KEY=your_llm_api_key
+LLM_MODEL=gpt-4  # Optional, defaults to gpt-4
+
+# Livekit Configuration (for Livekit agent)
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_URL=your_livekit_url
 ```
 
 ## Usage
 
+### Running the Discord Bot
+
 ```bash
 python -m rataura
+```
+
+### Running the Livekit Agent
+
+```bash
+python -m rataura.livekit_agent.run
 ```
 
 ## Development
@@ -64,6 +84,10 @@ pip install -r requirements-dev.txt
 # Run tests
 pytest
 ```
+
+## Dependencies
+
+This project uses Pydantic v2, which requires the `pydantic-settings` package for the `BaseSettings` functionality. Make sure to install all dependencies from the requirements.txt file.
 
 ## License
 
