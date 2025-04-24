@@ -4,7 +4,8 @@ Configuration module for the Rataura application.
 
 import os
 from typing import Optional, Any, Callable
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
