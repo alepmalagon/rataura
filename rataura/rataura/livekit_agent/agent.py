@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import time
+import sys
 from typing import Dict, Any, Optional, List, Union
 from dotenv import load_dotenv
 
@@ -274,6 +275,7 @@ def prewarm(proc: JobProcess):
     # Validate settings early
     try:
         validate_livekit_settings()
+        logger.info("Settings validation successful")
     except Exception as e:
         logger.error(f"Settings validation failed during prewarm: {e}")
         raise
@@ -303,17 +305,37 @@ async def entrypoint(ctx: JobContext):
         "user_id": "rataura-agent",
     }
     
-    # Connect to the room with a timeout
-    try:
-        logger.info("Connecting to room...")
-        await asyncio.wait_for(ctx.connect(), timeout=5.0)
-        logger.info("Connected to room successfully")
-    except asyncio.TimeoutError:
-        logger.error("Timeout while connecting to room")
-        raise
-    except Exception as e:
-        logger.error(f"Error connecting to room: {e}")
-        raise
+    # Connect to the room with a retry mechanism
+    max_retries = 3
+    retry_delay = 2
+    connection_timeout = 10.0  # Increased timeout
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"Connecting to room (attempt {attempt}/{max_retries})...")
+            # Use a longer timeout for the connection
+            await asyncio.wait_for(ctx.connect(), timeout=connection_timeout)
+            logger.info("Connected to room successfully")
+            break
+        except asyncio.TimeoutError:
+            if attempt < max_retries:
+                logger.warning(f"Timeout while connecting to room (attempt {attempt}/{max_retries}), retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to connect to room after {max_retries} attempts")
+                # Print detailed debug information
+                logger.error(f"Room name: {ctx.room.name}")
+                logger.error(f"Livekit URL: {settings.livekit_url}")
+                logger.error("Connection timeout - check network connectivity and Livekit server status")
+                raise
+        except Exception as e:
+            logger.error(f"Error connecting to room: {e}")
+            if attempt < max_retries:
+                logger.warning(f"Retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to connect to room after {max_retries} attempts")
+                raise
     
     # Create an agent session
     logger.info("Creating agent session...")
@@ -342,16 +364,27 @@ async def entrypoint(ctx: JobContext):
     # Add shutdown callback to log usage
     ctx.add_shutdown_callback(log_usage)
     
-    # Wait for a participant to join the room with a timeout
-    try:
-        logger.info("Waiting for participant...")
-        await asyncio.wait_for(ctx.wait_for_participant(), timeout=5.0)
-        logger.info("Participant joined")
-    except asyncio.TimeoutError:
-        logger.info("No participant joined within timeout, continuing anyway")
-    except Exception as e:
-        logger.error(f"Error waiting for participant: {e}")
-        raise
+    # Wait for a participant to join the room with a timeout and retry mechanism
+    max_participant_wait_retries = 2
+    participant_wait_timeout = 10.0  # Increased timeout
+    
+    for attempt in range(1, max_participant_wait_retries + 1):
+        try:
+            logger.info(f"Waiting for participant (attempt {attempt}/{max_participant_wait_retries})...")
+            await asyncio.wait_for(ctx.wait_for_participant(), timeout=participant_wait_timeout)
+            logger.info("Participant joined")
+            break
+        except asyncio.TimeoutError:
+            if attempt < max_participant_wait_retries:
+                logger.warning(f"No participant joined within timeout (attempt {attempt}/{max_participant_wait_retries}), retrying...")
+            else:
+                logger.info("No participant joined within timeout, continuing anyway")
+        except Exception as e:
+            logger.error(f"Error waiting for participant: {e}")
+            if attempt < max_participant_wait_retries:
+                logger.warning("Retrying...")
+            else:
+                logger.error("Failed to wait for participant, continuing anyway")
     
     # Start the session with the agent
     logger.info("Starting agent session...")
