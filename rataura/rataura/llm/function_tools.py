@@ -13,8 +13,13 @@ from rataura.esi.client import get_esi_client
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Configure OpenAI
-openai.api_key = settings.llm_api_key
+# Configure LLM API keys
+if settings.llm_provider_name.lower() == "gemini":
+    import google.generativeai as genai
+    genai.configure(api_key=settings.gemini_api_key or settings.llm_api_key)
+else:
+    # Default to OpenAI
+    openai.api_key = settings.llm_api_key
 
 
 # Function definitions for the LLM
@@ -515,8 +520,57 @@ async def process_message(message: str) -> str:
     """
     try:
         # Create the messages for the LLM
+        system_prompt = "You are a helpful assistant that provides information about EVE Online. You have access to the EVE Online ESI API through function calls. Use these functions to get accurate information about the game."
+        
+        if settings.llm_provider_name.lower() == "gemini":
+            try:
+                # Use Google's Gemini model
+                model = genai.GenerativeModel(
+                    model_name=settings.gemini_model,
+                    generation_config={"temperature": 0.7},
+                    tools=FUNCTION_DEFINITIONS
+                )
+                
+                # Create the chat session
+                chat = model.start_chat(history=[])
+                
+                # Send the message
+                response = chat.send_message(
+                    f"{system_prompt}\n\nUser message: {message}"
+                )
+                
+                # Check if there are function calls
+                if hasattr(response, 'candidates') and response.candidates and hasattr(response.candidates[0], 'content') and response.candidates[0].content:
+                    for part in response.candidates[0].content:
+                        if hasattr(part, 'function_call'):
+                            # Get the function call details
+                            function_name = part.function_call.name
+                            function_args = {}
+                            for param in part.function_call.args:
+                                function_args[param] = part.function_call.args[param]
+                            
+                            # Call the function
+                            function_response = await FUNCTION_MAP[function_name](**function_args)
+                            
+                            # Send the function response back to the model
+                            response = chat.send_message(
+                                f"Function {function_name} returned: {json.dumps(function_response)}"
+                            )
+                            
+                            # Return the final response
+                            return response.text
+                
+                # If no function calls, return the response text
+                return response.text
+                
+            except Exception as e:
+                logger.exception(f"Error using Gemini: {e}")
+                # Fall back to OpenAI if Gemini fails
+                logger.warning("Falling back to OpenAI due to Gemini error")
+        
+        # Default to OpenAI
         messages = [
-            {"role": "system", "content": "You are a helpful assistant that provides information about EVE Online. You have access to the EVE Online ESI API through function calls. Use these functions to get accurate information about the game."},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": message},
         ]
         
