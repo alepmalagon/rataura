@@ -1,0 +1,20 @@
+# Core dependencies
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Livekit dependencies
+livekit-agents>=1.0.0rc1
+livekit-plugins>=1.0.0rc1
+
+# LLM dependencies
+google-generativeai>=0.3.0
+
+# Discord dependencies (optional for Discord bot)
+discord.py>=2.0.0
+
+# Async HTTP client
+aiohttp>=3.8.0
+
+# Logging
+structlog>=23.0.0

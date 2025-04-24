@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # LLM settings
     llm_api_key: Optional[str] = Field(None, env="LLM_API_KEY")
     llm_model: str = Field("gpt-4", env="LLM_MODEL")
-    llm_provider_name: str = Field("openai", env="LLM_PROVIDER")
+    llm_provider_name: str = Field("gemini", env="LLM_PROVIDER")  # Default to Gemini
     
     # Gemini settings
     gemini_api_key: Optional[str] = Field(None, env="GEMINI_API_KEY")
@@ -53,15 +53,12 @@ class Settings(BaseSettings):
             Any: The LLM provider.
         """
         try:
-            if self.llm_provider_name.lower() == "gemini":
-                from livekit.plugins import google
-                return google.LLM(
-                    model=model or self.gemini_model,
-                    api_key=self.gemini_api_key or self.llm_api_key
-                )
-            else:  # Default to OpenAI
-                from livekit.plugins import openai
-                return openai.LLM(model=model or self.llm_model)
+            # Only support Gemini
+            from livekit.plugins import google
+            return google.LLM(
+                model=model or self.gemini_model,
+                api_key=self.gemini_api_key or self.llm_api_key
+            )
         except ImportError:
             raise ImportError("Livekit plugins are not installed. Please install livekit-agents package.")
 
