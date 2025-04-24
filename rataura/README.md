@@ -4,13 +4,13 @@ A Python Livekit application for a Discord conversational agent that uses LLM fu
 
 ## Overview
 
-Rataura is a Discord bot and Livekit agent that allows users to interact with EVE Online game data through natural language queries. The bot uses a large language model (LLM) with function calling capabilities to interpret user queries and fetch relevant data from the EVE Online ESI API.
+Rataura is a Discord bot and Livekit agent that allows users to interact with EVE Online game data through natural language queries. The bot uses Google's Gemini model with function calling capabilities to interpret user queries and fetch relevant data from the EVE Online ESI API.
 
 ## Features
 
 - Discord integration using Discord.py
 - Livekit 1.0 agent for chat interactions
-- Natural language processing of user queries
+- Natural language processing of user queries using Google's Gemini model
 - Access to EVE Online ESI API data
 - Support for both public and authenticated ESI endpoints
 - Function calling to fetch specific game data
@@ -55,12 +55,10 @@ EVE_CLIENT_SECRET=your_eve_client_secret
 EVE_CALLBACK_URL=your_callback_url
 
 # LLM Configuration (required for both Discord bot and Livekit agent)
-LLM_PROVIDER=openai  # or "gemini" to use Google's Gemini model
-LLM_API_KEY=your_llm_api_key
-LLM_MODEL=gpt-4  # Optional, defaults to gpt-4
+LLM_API_KEY=your_llm_api_key  # Can be used as fallback for Gemini
 
-# Gemini Configuration (only required if LLM_PROVIDER=gemini)
-GEMINI_API_KEY=your_gemini_api_key  # Optional, will use LLM_API_KEY if not provided
+# Gemini Configuration
+GEMINI_API_KEY=your_gemini_api_key  # Will use LLM_API_KEY if not provided
 GEMINI_MODEL=gemini-2.0-flash-exp  # Optional, defaults to gemini-2.0-flash-exp
 
 # Livekit Configuration (required only for Livekit agent)
@@ -75,12 +73,10 @@ If you only want to run the Livekit agent, you need at minimum:
 
 ```
 # LLM Configuration
-LLM_PROVIDER=openai  # or "gemini" to use Google's Gemini model
-LLM_API_KEY=your_llm_api_key
-LLM_MODEL=gpt-4  # Optional, defaults to gpt-4
+LLM_API_KEY=your_llm_api_key  # Can be used as fallback for Gemini
 
-# Gemini Configuration (only if using Gemini)
-GEMINI_API_KEY=your_gemini_api_key  # Optional, will use LLM_API_KEY if not provided
+# Gemini Configuration
+GEMINI_API_KEY=your_gemini_api_key  # Will use LLM_API_KEY if not provided
 GEMINI_MODEL=gemini-2.0-flash-exp  # Optional, defaults to gemini-2.0-flash-exp
 
 # Livekit Configuration
@@ -119,8 +115,8 @@ This can happen because the agent needs more time to initialize resources. The l
 
 1. Improved logging to help diagnose initialization issues
 2. Prewarming of the ESI client to avoid delays during job initialization
-3. Increased initialization timeout (30 seconds instead of the default)
-4. Better error handling and validation of required settings
+3. Better error handling and validation of required settings
+4. Retry mechanisms for connection and participant waiting
 
 If you still encounter timeout issues, you can try:
 
@@ -137,7 +133,13 @@ pytest
 
 ## Dependencies
 
-This project uses Pydantic v2, which requires the `pydantic-settings` package for the `BaseSettings` functionality. Make sure to install all dependencies from the requirements.txt file.
+This project uses:
+- Pydantic v2 with `pydantic-settings` package for configuration
+- Google's Generative AI Python SDK for Gemini integration
+- Livekit Agents 1.0 RC for the agent functionality
+- Discord.py for the Discord bot integration
+
+Make sure to install all dependencies from the requirements.txt file.
 
 ## License
 

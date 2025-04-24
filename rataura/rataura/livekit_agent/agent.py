@@ -66,13 +66,9 @@ def validate_livekit_settings():
     if not settings.livekit_url:
         missing_settings.append("LIVEKIT_URL")
     
-    # Check LLM settings based on provider
-    if settings.llm_provider_name.lower() == "gemini":
-        if not (settings.gemini_api_key or settings.llm_api_key):
-            missing_settings.append("GEMINI_API_KEY or LLM_API_KEY")
-    else:  # Default to OpenAI
-        if not settings.llm_api_key:
-            missing_settings.append("LLM_API_KEY")
+    # Check Gemini settings
+    if not (settings.gemini_api_key or settings.llm_api_key):
+        missing_settings.append("GEMINI_API_KEY or LLM_API_KEY")
     
     if missing_settings:
         error_msg = f"Missing required environment variables: {', '.join(missing_settings)}"
@@ -341,8 +337,8 @@ async def entrypoint(ctx: JobContext):
     logger.info("Creating agent session...")
     try:
         session = AgentSession(
-            # Configure the LLM
-            llm=settings.llm_provider(model=settings.llm_model if settings.llm_provider_name.lower() != "gemini" else settings.gemini_model),
+            # Configure the LLM - Always use Gemini
+            llm=settings.llm_provider(model=settings.gemini_model),
         )
         logger.info("Agent session created successfully")
     except Exception as e:
