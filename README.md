@@ -43,23 +43,40 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory with the following variables:
 
 ```
-# Discord Bot Configuration
+# Discord Bot Configuration (required only for Discord bot)
 DISCORD_TOKEN=your_discord_token
 
-# EVE Online ESI API Configuration
+# EVE Online ESI API Configuration (optional for basic Livekit agent)
 EVE_CLIENT_ID=your_eve_client_id
 EVE_CLIENT_SECRET=your_eve_client_secret
 EVE_CALLBACK_URL=your_callback_url
 
-# LLM Configuration
+# LLM Configuration (required for both Discord bot and Livekit agent)
 LLM_API_KEY=your_llm_api_key
 LLM_MODEL=gpt-4  # Optional, defaults to gpt-4
 
-# Livekit Configuration (for Livekit agent)
+# Livekit Configuration (required only for Livekit agent)
 LIVEKIT_API_KEY=your_livekit_api_key
 LIVEKIT_API_SECRET=your_livekit_api_secret
 LIVEKIT_URL=your_livekit_url
 ```
+
+### Minimum Required Environment Variables for Livekit Agent
+
+If you only want to run the Livekit agent, you need at minimum:
+
+```
+# LLM Configuration
+LLM_API_KEY=your_llm_api_key
+LLM_MODEL=gpt-4  # Optional, defaults to gpt-4
+
+# Livekit Configuration
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_URL=your_livekit_url
+```
+
+The Discord and EVE Online ESI API settings are optional for the Livekit agent, but required for the Discord bot.
 
 ## Usage
 

@@ -6,6 +6,7 @@ This module implements a Livekit 1.0 worker that includes the LLM tool functions
 import logging
 import asyncio
 import json
+import os
 from typing import Dict, Any, Optional, List, Union
 from dotenv import load_dotenv
 
@@ -39,6 +40,26 @@ from rataura.llm.function_tools import (
 # Configure logging
 logger = logging.getLogger("rataura-agent")
 load_dotenv()
+
+# Validate required settings for Livekit agent
+def validate_livekit_settings():
+    """
+    Validate that the required settings for the Livekit agent are present.
+    Raises an error if any required settings are missing.
+    """
+    missing_settings = []
+    
+    if not settings.livekit_api_key:
+        missing_settings.append("LIVEKIT_API_KEY")
+    if not settings.livekit_api_secret:
+        missing_settings.append("LIVEKIT_API_SECRET")
+    if not settings.livekit_url:
+        missing_settings.append("LIVEKIT_URL")
+    if not settings.llm_api_key:
+        missing_settings.append("LLM_API_KEY")
+    
+    if missing_settings:
+        raise ValueError(f"Missing required environment variables: {', '.join(missing_settings)}")
 
 class RatauraAgent(Agent):
     """
@@ -232,6 +253,9 @@ async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
     """
+    # Validate required settings
+    validate_livekit_settings()
+    
     # Set up logging context
     ctx.log_context_fields = {
         "room": ctx.room.name,

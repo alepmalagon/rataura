@@ -13,16 +13,16 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables.
     """
     # Discord settings
-    discord_token: str = Field(..., env="DISCORD_TOKEN")
+    discord_token: Optional[str] = Field(None, env="DISCORD_TOKEN")
     
     # EVE Online ESI API settings
-    eve_client_id: str = Field(..., env="EVE_CLIENT_ID")
-    eve_client_secret: str = Field(..., env="EVE_CLIENT_SECRET")
-    eve_callback_url: str = Field(..., env="EVE_CALLBACK_URL")
+    eve_client_id: Optional[str] = Field(None, env="EVE_CLIENT_ID")
+    eve_client_secret: Optional[str] = Field(None, env="EVE_CLIENT_SECRET")
+    eve_callback_url: Optional[str] = Field(None, env="EVE_CALLBACK_URL")
     eve_user_agent: str = Field("Rataura/0.1.0 (Discord Bot)", env="EVE_USER_AGENT")
     
     # LLM settings
-    llm_api_key: str = Field(..., env="LLM_API_KEY")
+    llm_api_key: Optional[str] = Field(None, env="LLM_API_KEY")
     llm_model: str = Field("gpt-4", env="LLM_MODEL")
     
     # Livekit settings
