@@ -3,7 +3,7 @@ Configuration module for the Rataura application.
 """
 
 import os
-from typing import Optional
+from typing import Optional, Any, Callable
 from pydantic import BaseSettings, Field
 
 
@@ -35,6 +35,22 @@ class Settings(BaseSettings):
         """
         env_file = ".env"
         env_file_encoding = "utf-8"
+    
+    def llm_provider(self, model: Optional[str] = None) -> Any:
+        """
+        Get the LLM provider for the Livekit agent.
+        
+        Args:
+            model (Optional[str], optional): The model to use. Defaults to None.
+        
+        Returns:
+            Any: The LLM provider.
+        """
+        try:
+            from livekit.plugins import openai
+            return openai.LLM(model=model or self.llm_model)
+        except ImportError:
+            raise ImportError("Livekit plugins are not installed. Please install livekit-agents package.")
 
 
 # Create a global settings instance

@@ -1,6 +1,7 @@
 # Livekit dependencies
 livekit==1.0.0rc0
 livekit-server-sdk==1.0.0rc0
+livekit-agents==1.0.0rc0
 
 # Discord integration
 discord.py>=2.0.0
