@@ -374,6 +374,4 @@ if __name__ == "__main__":
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint, 
         prewarm_fnc=prewarm,
-        # Increase the initialization timeout to give more time for setup
-        initialize_timeout=30.0,
     ))
