@@ -7,6 +7,7 @@ import logging
 import asyncio
 import json
 import os
+import time
 from typing import Dict, Any, Optional, List, Union
 from dotenv import load_dotenv
 
@@ -38,8 +39,15 @@ from rataura.llm.function_tools import (
 )
 
 # Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s %(name)s - %(message)s",
+)
 logger = logging.getLogger("rataura-agent")
 load_dotenv()
+
+# Global variable to store the ESI client
+esi_client = None
 
 # Validate required settings for Livekit agent
 def validate_livekit_settings():
@@ -47,6 +55,7 @@ def validate_livekit_settings():
     Validate that the required settings for the Livekit agent are present.
     Raises an error if any required settings are missing.
     """
+    logger.info("Validating Livekit settings...")
     missing_settings = []
     
     if not settings.livekit_api_key:
@@ -65,7 +74,11 @@ def validate_livekit_settings():
             missing_settings.append("LLM_API_KEY")
     
     if missing_settings:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing_settings)}")
+        error_msg = f"Missing required environment variables: {', '.join(missing_settings)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    logger.info("Livekit settings validation successful")
 
 class RatauraAgent(Agent):
     """
@@ -76,6 +89,7 @@ class RatauraAgent(Agent):
         """
         Initialize the Rataura agent.
         """
+        logger.info("Initializing RatauraAgent...")
         super().__init__(
             instructions=(
                 "You are Rataura, a helpful assistant for EVE Online players. "
@@ -86,11 +100,13 @@ class RatauraAgent(Agent):
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
         )
+        logger.info("RatauraAgent initialized successfully")
     
     async def on_enter(self):
         """
         Called when the agent is added to the session.
         """
+        logger.info("Agent entered session, generating welcome message")
         # Generate a welcome message when the agent is added to the session
         self.session.generate_reply()
     
@@ -250,17 +266,36 @@ class RatauraAgent(Agent):
 def prewarm(proc: JobProcess):
     """
     Prewarm function for the worker.
+    This is called before any jobs are processed to initialize resources.
     """
-    # Initialize any resources needed for the worker
-    pass
+    logger.info("Prewarming worker process...")
+    start_time = time.time()
+    
+    # Validate settings early
+    try:
+        validate_livekit_settings()
+    except Exception as e:
+        logger.error(f"Settings validation failed during prewarm: {e}")
+        raise
+    
+    # Initialize the ESI client during prewarm to avoid delays during job execution
+    try:
+        # Store the ESI client in the process userdata for later use
+        proc.userdata["esi_client"] = get_esi_client()
+        logger.info("ESI client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize ESI client: {e}")
+        raise
+    
+    logger.info(f"Prewarm completed in {time.time() - start_time:.2f} seconds")
 
 
 async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
     """
-    # Validate required settings
-    validate_livekit_settings()
+    start_time = time.time()
+    logger.info(f"Starting agent entrypoint for room: {ctx.room.name}")
     
     # Set up logging context
     ctx.log_context_fields = {
@@ -268,14 +303,29 @@ async def entrypoint(ctx: JobContext):
         "user_id": "rataura-agent",
     }
     
-    # Connect to the room
-    await ctx.connect()
+    # Connect to the room with a timeout
+    try:
+        logger.info("Connecting to room...")
+        await asyncio.wait_for(ctx.connect(), timeout=5.0)
+        logger.info("Connected to room successfully")
+    except asyncio.TimeoutError:
+        logger.error("Timeout while connecting to room")
+        raise
+    except Exception as e:
+        logger.error(f"Error connecting to room: {e}")
+        raise
     
     # Create an agent session
-    session = AgentSession(
-        # Configure the LLM
-        llm=settings.llm_provider(model=settings.llm_model if settings.llm_provider_name.lower() != "gemini" else settings.gemini_model),
-    )
+    logger.info("Creating agent session...")
+    try:
+        session = AgentSession(
+            # Configure the LLM
+            llm=settings.llm_provider(model=settings.llm_model if settings.llm_provider_name.lower() != "gemini" else settings.gemini_model),
+        )
+        logger.info("Agent session created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create agent session: {e}")
+        raise
     
     # Set up metrics collection
     usage_collector = metrics.UsageCollector()
@@ -292,17 +342,38 @@ async def entrypoint(ctx: JobContext):
     # Add shutdown callback to log usage
     ctx.add_shutdown_callback(log_usage)
     
-    # Wait for a participant to join the room
-    await ctx.wait_for_participant()
+    # Wait for a participant to join the room with a timeout
+    try:
+        logger.info("Waiting for participant...")
+        await asyncio.wait_for(ctx.wait_for_participant(), timeout=5.0)
+        logger.info("Participant joined")
+    except asyncio.TimeoutError:
+        logger.info("No participant joined within timeout, continuing anyway")
+    except Exception as e:
+        logger.error(f"Error waiting for participant: {e}")
+        raise
     
     # Start the session with the agent
-    await session.start(
-        agent=RatauraAgent(),
-        room=ctx.room,
-        room_input_options=RoomInputOptions(),
-        room_output_options=RoomOutputOptions(transcription_enabled=True),
-    )
+    logger.info("Starting agent session...")
+    try:
+        await session.start(
+            agent=RatauraAgent(),
+            room=ctx.room,
+            room_input_options=RoomInputOptions(),
+            room_output_options=RoomOutputOptions(transcription_enabled=True),
+        )
+        logger.info("Agent session started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start agent session: {e}")
+        raise
+    
+    logger.info(f"Entrypoint completed initialization in {time.time() - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint, 
+        prewarm_fnc=prewarm,
+        # Increase the initialization timeout to give more time for setup
+        initialize_timeout=30.0,
+    ))
