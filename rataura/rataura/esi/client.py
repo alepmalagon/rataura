@@ -241,9 +241,9 @@ class ESIClient:
         if type_id:
             params["type_id"] = type_id
         
-        return await self.get(f"/markets/{region_id}/orders/", params=params)
+        return await self.get(f"/markets/regions/{region_id}/orders/", params=params)
     
-    # Search endpoint
+    # Search endpoints
     
     async def search(self, search: str, categories: List[str], strict: bool = False) -> Dict[str, List[int]]:
         """
@@ -257,27 +257,32 @@ class ESIClient:
         Returns:
             Dict[str, List[int]]: The search results.
         """
-        params = {
-            "search": search,
-            "categories": ",".join(categories),
-            "strict": str(strict).lower(),
-        }
+        # Use the universe/ids endpoint instead of /search/
+        data = [search]
         
-        return await self.get("/search/", params=params)
-    
-    # Utility methods
-    
-    async def resolve_ids(self, ids: List[int]) -> List[Dict[str, Any]]:
-        """
-        Resolve a list of IDs to names and categories.
-        
-        Args:
-            ids (List[int]): The IDs to resolve.
-        
-        Returns:
-            List[Dict[str, Any]]: The resolved names and categories.
-        """
-        return await self.post("/universe/names/", data=ids)
+        try:
+            result = await self.post("/universe/ids/", data=data)
+            
+            # Filter results by requested categories
+            filtered_result = {}
+            for category in categories:
+                category_key = category
+                # Map 'alliance' to 'alliances' for the response format
+                if category == 'alliance':
+                    category_key = 'alliances'
+                elif category == 'character':
+                    category_key = 'characters'
+                elif category == 'corporation':
+                    category_key = 'corporations'
+                
+                if category_key in result:
+                    filtered_result[category] = [item['id'] for item in result[category_key]]
+            
+            return filtered_result
+        except Exception as e:
+            logger.error(f"Error searching for '{search}' in categories {categories}: {e}")
+            # Return empty result on error
+            return {category: [] for category in categories}
 
 
 # Create a global ESI client instance
