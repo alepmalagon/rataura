@@ -4,22 +4,14 @@ This module implements a Livekit 1.0 worker that includes the LLM tool functions
 """
 
 import logging
-import asyncio
-import json
-import os
-import time
-import sys
-from typing import Dict, Any, Optional, List, Union
 from dotenv import load_dotenv
 
 from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
-    JobProcess,
     RoomInputOptions,
     RoomOutputOptions,
-    RunContext,
     WorkerOptions,
     cli,
 )
@@ -46,36 +38,6 @@ logging.basicConfig(
 logger = logging.getLogger("rataura-agent")
 load_dotenv()
 
-# Global variable to store the ESI client
-esi_client = None
-
-# Validate required settings for Livekit agent
-def validate_livekit_settings():
-    """
-    Validate that the required settings for the Livekit agent are present.
-    Raises an error if any required settings are missing.
-    """
-    logger.info("Validating Livekit settings...")
-    missing_settings = []
-    
-    if not settings.livekit_api_key:
-        missing_settings.append("LIVEKIT_API_KEY")
-    if not settings.livekit_api_secret:
-        missing_settings.append("LIVEKIT_API_SECRET")
-    if not settings.livekit_url:
-        missing_settings.append("LIVEKIT_URL")
-    
-    # Check Gemini settings
-    if not (settings.gemini_api_key or settings.llm_api_key):
-        missing_settings.append("GEMINI_API_KEY or LLM_API_KEY")
-    
-    if missing_settings:
-        error_msg = f"Missing required environment variables: {', '.join(missing_settings)}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    logger.info("Livekit settings validation successful")
-
 class RatauraAgent(Agent):
     """
     Livekit agent for the Rataura application.
@@ -95,34 +57,18 @@ class RatauraAgent(Agent):
                 "You are knowledgeable about EVE Online game mechanics, items, ships, corporations, alliances, and more. "
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
+            llm=settings.llm_provider(),
         )
         logger.info("RatauraAgent initialized successfully")
-    
-    async def on_enter(self):
-        """
-        Called when the agent is added to the session.
-        """
-        logger.info("Agent entered session, generating welcome message")
-        # Generate a welcome message when the agent is added to the session
-        self.session.generate_reply()
-    
-    async def on_chat_message(self, message: str, ctx: ChatContext):
-        """
-        Called when a chat message is received.
-        """
-        logger.info(f"Received chat message: {message}")
-        # Generate a reply to the chat message
-        await self.session.generate_reply(ctx)
     
     # Function tools for the LLM
     
     @function_tool
     async def get_alliance_info_tool(
         self,
-        context: RunContext,
-        alliance_id: Optional[int] = None,
-        alliance_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        alliance_id=None,
+        alliance_name=None,
+    ):
         """
         Get information about an EVE Online alliance.
         
@@ -137,10 +83,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_character_info_tool(
         self,
-        context: RunContext,
-        character_id: Optional[int] = None,
-        character_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        character_id=None,
+        character_name=None,
+    ):
         """
         Get information about an EVE Online character.
         
@@ -155,10 +100,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_corporation_info_tool(
         self,
-        context: RunContext,
-        corporation_id: Optional[int] = None,
-        corporation_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        corporation_id=None,
+        corporation_name=None,
+    ):
         """
         Get information about an EVE Online corporation.
         
@@ -173,10 +117,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_item_info_tool(
         self,
-        context: RunContext,
-        type_id: Optional[int] = None,
-        type_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        type_id=None,
+        type_name=None,
+    ):
         """
         Get information about an EVE Online item type.
         
@@ -191,12 +134,11 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_market_prices_tool(
         self,
-        context: RunContext,
-        type_id: Optional[int] = None,
-        type_name: Optional[str] = None,
-        region_id: Optional[int] = None,
-        region_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        type_id=None,
+        type_name=None,
+        region_id=None,
+        region_name=None,
+    ):
         """
         Get market prices for EVE Online items.
         
@@ -213,11 +155,10 @@ class RatauraAgent(Agent):
     @function_tool
     async def search_entities_tool(
         self,
-        context: RunContext,
-        search: str,
-        categories: Optional[List[str]] = None,
-        strict: bool = False,
-    ) -> Dict[str, Any]:
+        search,
+        categories=None,
+        strict=False,
+    ):
         """
         Search for EVE Online entities by name.
         
@@ -233,10 +174,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_system_info_tool(
         self,
-        context: RunContext,
-        system_id: Optional[int] = None,
-        system_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        system_id=None,
+        system_name=None,
+    ):
         """
         Get information about an EVE Online solar system.
         
@@ -251,10 +191,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_region_info_tool(
         self,
-        context: RunContext,
-        region_id: Optional[int] = None,
-        region_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        region_id=None,
+        region_name=None,
+    ):
         """
         Get information about an EVE Online region.
         
@@ -267,135 +206,30 @@ class RatauraAgent(Agent):
         return result
 
 
-def prewarm(proc: JobProcess):
-    """
-    Prewarm function for the worker.
-    This is called before any jobs are processed to initialize resources.
-    """
-    logger.info("Prewarming worker process...")
-    start_time = time.time()
-    
-    # Validate settings early
-    try:
-        validate_livekit_settings()
-        logger.info("Settings validation successful")
-    except Exception as e:
-        logger.error(f"Settings validation failed during prewarm: {e}")
-        raise
-    
-    # Initialize the ESI client during prewarm to avoid delays during job execution
-    try:
-        # Store the ESI client in the process userdata for later use
-        proc.userdata["esi_client"] = get_esi_client()
-        logger.info("ESI client initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize ESI client: {e}")
-        raise
-    
-    logger.info(f"Prewarm completed in {time.time() - start_time:.2f} seconds")
-
-
 async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
     """
-    start_time = time.time()
     logger.info(f"Starting agent entrypoint for room: {ctx.room.name}")
     
-    # Set up logging context
-    ctx.log_context_fields = {
-        "room": ctx.room.name,
-        "user_id": "rataura-agent",
-    }
+    # Connect to the room
+    logger.info("Connecting to room...")
+    await ctx.connect()
+    logger.info("Connected to room successfully")
     
-    # Connect to the room with a retry mechanism
-    max_retries = 3
-    retry_delay = 2
-    connection_timeout = 10.0  # Increased timeout
-    
-    for attempt in range(1, max_retries + 1):
-        try:
-            logger.info(f"Connecting to room (attempt {attempt}/{max_retries})...")
-            # Use a longer timeout for the connection
-            await asyncio.wait_for(ctx.connect(), timeout=connection_timeout)
-            logger.info("Connected to room successfully")
-            break
-        except asyncio.TimeoutError:
-            if attempt < max_retries:
-                logger.warning(f"Timeout while connecting to room (attempt {attempt}/{max_retries}), retrying in {retry_delay} seconds...")
-                await asyncio.sleep(retry_delay)
-            else:
-                logger.error(f"Failed to connect to room after {max_retries} attempts")
-                # Print detailed debug information
-                logger.error(f"Room name: {ctx.room.name}")
-                logger.error(f"Livekit URL: {settings.livekit_url}")
-                logger.error("Connection timeout - check network connectivity and Livekit server status")
-                raise
-        except Exception as e:
-            logger.error(f"Error connecting to room: {e}")
-            if attempt < max_retries:
-                logger.warning(f"Retrying in {retry_delay} seconds...")
-                await asyncio.sleep(retry_delay)
-            else:
-                logger.error(f"Failed to connect to room after {max_retries} attempts")
-                raise
-    
-    # Create an agent session
-    logger.info("Creating agent session...")
-    try:
-        session = AgentSession(
-            # Configure the LLM - Always use Gemini
-            llm=settings.llm_provider(model=settings.gemini_model),
-        )
-        logger.info("Agent session created successfully")
-    except Exception as e:
-        logger.error(f"Failed to create agent session: {e}")
-        raise
-    
-    # Wait for a participant to join the room with a timeout and retry mechanism
-    max_participant_wait_retries = 2
-    participant_wait_timeout = 10.0  # Increased timeout
-    
-    for attempt in range(1, max_participant_wait_retries + 1):
-        try:
-            logger.info(f"Waiting for participant (attempt {attempt}/{max_participant_wait_retries})...")
-            await asyncio.wait_for(ctx.wait_for_participant(), timeout=participant_wait_timeout)
-            logger.info("Participant joined")
-            break
-        except asyncio.TimeoutError:
-            if attempt < max_participant_wait_retries:
-                logger.warning(f"No participant joined within timeout (attempt {attempt}/{max_participant_wait_retries}), retrying...")
-            else:
-                logger.info("No participant joined within timeout, continuing anyway")
-        except Exception as e:
-            logger.error(f"Error waiting for participant: {e}")
-            if attempt < max_participant_wait_retries:
-                logger.warning("Retrying...")
-            else:
-                logger.error("Failed to wait for participant, continuing anyway")
-    
-    # Start the session with the agent
-    logger.info("Starting agent session...")
-    try:
-        await session.start(
-            agent=RatauraAgent(),
-            room=ctx.room,
-            room_input_options=RoomInputOptions(),
-            room_output_options=RoomOutputOptions(
-                transcription_enabled=True,
-                chat_enabled=True,  # Enable chat output
-            ),
-        )
-        logger.info("Agent session started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start agent session: {e}")
-        raise
-    
-    logger.info(f"Entrypoint completed initialization in {time.time() - start_time:.2f} seconds")
+    # Create and start the agent session
+    logger.info("Creating and starting agent session...")
+    session = AgentSession()
+    await session.start(
+        agent=RatauraAgent(),
+        room=ctx.room,
+        room_input_options=RoomInputOptions(text_enabled=True, audio_enabled=False),
+        room_output_options=RoomOutputOptions(transcription_enabled=True, audio_enabled=False),
+    )
+    logger.info("Agent session started successfully")
 
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(
-        entrypoint_fnc=entrypoint, 
-        prewarm_fnc=prewarm,
+        entrypoint_fnc=entrypoint,
     ))
