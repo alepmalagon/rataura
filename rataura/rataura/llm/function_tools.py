@@ -12,10 +12,6 @@ from rataura.esi.client import get_esi_client
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Configure LLM API keys - Only use Gemini
-import google.generativeai as genai
-genai.configure(api_key=settings.gemini_api_key or settings.llm_api_key)
-
 # Function definitions for the LLM
 FUNCTION_DEFINITIONS = [
     {
@@ -307,8 +303,8 @@ async def get_item_info(type_id: Optional[int] = None, type_name: Optional[str] 
         type_info = await esi_client.get_type(type_id)
         return type_info
     except Exception as e:
-        logger.error(f"Error getting item type info: {e}")
-        return {"error": f"Error getting item type info: {str(e)}"}
+        logger.error(f"Error getting item info: {e}")
+        return {"error": f"Error getting item info: {str(e)}"}
 
 
 async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[str] = None, region_id: Optional[int] = None, region_name: Optional[str] = None) -> Dict[str, Any]:
@@ -500,66 +496,3 @@ FUNCTION_MAP = {
     "get_system_info": get_system_info,
     "get_region_info": get_region_info,
 }
-
-
-async def process_message(message: str) -> str:
-    """
-    Process a message with the LLM and execute any function calls.
-    
-    Args:
-        message (str): The message to process.
-    
-    Returns:
-        str: The response from the LLM.
-    """
-    try:
-        # Create the messages for the LLM
-        system_prompt = "You are a helpful assistant that provides information about EVE Online. You have access to the EVE Online ESI API through function calls. Use these functions to get accurate information about the game."
-        
-        try:
-            # Use Google's Gemini model
-            model = genai.GenerativeModel(
-                model_name=settings.gemini_model,
-                generation_config={"temperature": 0.7},
-                tools=FUNCTION_DEFINITIONS
-            )
-            
-            # Create the chat session
-            chat = model.start_chat(history=[])
-            
-            # Send the message
-            response = chat.send_message(
-                f"{system_prompt}\n\nUser message: {message}"
-            )
-            
-            # Check if there are function calls
-            if hasattr(response, 'candidates') and response.candidates and hasattr(response.candidates[0], 'content') and response.candidates[0].content:
-                for part in response.candidates[0].content:
-                    if hasattr(part, 'function_call'):
-                        # Get the function call details
-                        function_name = part.function_call.name
-                        function_args = {}
-                        for param in part.function_call.args:
-                            function_args[param] = part.function_call.args[param]
-                        
-                        # Call the function
-                        function_response = await FUNCTION_MAP[function_name](**function_args)
-                        
-                        # Send the function response back to the model
-                        response = chat.send_message(
-                            f"Function {function_name} returned: {json.dumps(function_response)}"
-                        )
-                        
-                        # Return the final response
-                        return response.text
-            
-            # If no function calls, return the response text
-            return response.text
-            
-        except Exception as e:
-            logger.exception(f"Error using Gemini: {e}")
-            return f"I'm sorry, but I encountered an error while processing your message with Gemini: {str(e)}"
-    
-    except Exception as e:
-        logger.exception(f"Error processing message: {e}")
-        return f"I'm sorry, but I encountered an error while processing your message: {str(e)}"
