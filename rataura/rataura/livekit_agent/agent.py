@@ -63,12 +63,13 @@ class RatauraAgent(Agent):
         )
         logger.info("RatauraAgent initialized successfully")
     
-    async def on_chat_message(self, message: str, ctx: ChatContext):
+    async def on_text(self, text: str, ctx: ChatContext) -> None:
         """
-        Called when a chat message is received.
+        Called when a text message is received.
+        This is the main entry point for chat messages.
         """
-        logger.info(f"Received chat message: {message}")
-        # Generate a reply to the chat message
+        logger.info(f"Received text message: {text}")
+        # Generate a reply to the text message
         await self.session.generate_reply(ctx)
     
     # Function tools for the LLM
@@ -243,17 +244,23 @@ async def entrypoint(ctx: JobContext):
     
     # Connect to the room
     logger.info("Connecting to room...")
-    await ctx.connect()
-    logger.info("Connected to room successfully")
+    try:
+        await ctx.connect()
+        logger.info("Connected to room successfully")
+    except Exception as e:
+        logger.error(f"Failed to connect to room: {e}")
+        raise
     
     # Create and start the agent session
     logger.info("Creating and starting agent session...")
     session = AgentSession()
+    
+    # Start the agent session with text input enabled
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
         room_input_options=RoomInputOptions(text_enabled=True, audio_enabled=False),
-        room_output_options=RoomOutputOptions(transcription_enabled=True, audio_enabled=False),
+        room_output_options=RoomOutputOptions(text_enabled=True, audio_enabled=False),
     )
     logger.info("Agent session started successfully")
 

@@ -105,6 +105,25 @@ The Livekit agent is a text-only agent that responds to chat messages in the Liv
 
 The agent will respond to your messages and use the EVE Online ESI API to fetch game data based on your queries.
 
+## Troubleshooting
+
+### Chat Messages Not Working
+
+If the agent is not responding to chat messages:
+
+1. Check the logs for any errors related to text streams
+2. Make sure you're using the correct method name: `on_text` instead of `on_chat_message`
+3. Verify that `text_enabled=True` is set in both `RoomInputOptions` and `RoomOutputOptions`
+4. Ensure that the agent is properly connected to the room
+
+### ESI API Errors
+
+If you encounter ESI API errors:
+
+1. Check that the ESI API endpoints are correctly implemented
+2. Verify that the search functionality is using the `/universe/ids/` endpoint instead of the deprecated `/search/` endpoint
+3. Make sure you have proper error handling in place
+
 ## Dependencies
 
 This project uses:
