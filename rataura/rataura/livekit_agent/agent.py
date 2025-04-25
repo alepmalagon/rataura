@@ -10,6 +10,7 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
+    JobProcess,
     RoomInputOptions,
     RoomOutputOptions,
     WorkerOptions,
@@ -60,6 +61,14 @@ class RatauraAgent(Agent):
             llm=settings.llm_provider(),
         )
         logger.info("RatauraAgent initialized successfully")
+    
+    async def on_chat_message(self, message: str, ctx: ChatContext):
+        """
+        Called when a chat message is received.
+        """
+        logger.info(f"Received chat message: {message}")
+        # Generate a reply to the chat message
+        await self.session.generate_reply(ctx)
     
     # Function tools for the LLM
     
@@ -206,6 +215,25 @@ class RatauraAgent(Agent):
         return result
 
 
+def prewarm(proc: JobProcess):
+    """
+    Prewarm function for the worker.
+    This is called before any jobs are processed to initialize resources.
+    """
+    logger.info("Prewarming worker process...")
+    
+    # Initialize the ESI client during prewarm to avoid delays during job execution
+    try:
+        # Store the ESI client in the process userdata for later use
+        proc.userdata["esi_client"] = get_esi_client()
+        logger.info("ESI client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize ESI client: {e}")
+        raise
+    
+    logger.info("Prewarm completed successfully")
+
+
 async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
@@ -232,4 +260,5 @@ async def entrypoint(ctx: JobContext):
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
+        prewarm_fnc=prewarm,
     ))
