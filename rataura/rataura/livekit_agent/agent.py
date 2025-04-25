@@ -259,8 +259,8 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(text_enabled=True, audio_enabled=False),
-        room_output_options=RoomOutputOptions(text_enabled=True, audio_enabled=False),
+        room_input_options=RoomInputOptions(text_enabled=True),
+        room_output_options=RoomOutputOptions(transcription_enabled=True),
     )
     logger.info("Agent session started successfully")
 
