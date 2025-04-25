@@ -5,7 +5,7 @@ Script to run the Rataura Livekit agent.
 
 import logging
 from livekit.agents import WorkerOptions, cli
-from rataura.livekit_agent.agent import entrypoint
+from rataura.livekit_agent.agent import entrypoint, prewarm
 
 # Configure logging
 logging.basicConfig(
@@ -16,4 +16,5 @@ logging.basicConfig(
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
+        prewarm_fnc=prewarm,
     ))
