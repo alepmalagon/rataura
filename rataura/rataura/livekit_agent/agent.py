@@ -22,7 +22,6 @@ from livekit.agents import (
     RunContext,
     WorkerOptions,
     cli,
-    metrics,
 )
 from livekit.agents.llm import function_tool, ChatContext
 
@@ -106,6 +105,14 @@ class RatauraAgent(Agent):
         logger.info("Agent entered session, generating welcome message")
         # Generate a welcome message when the agent is added to the session
         self.session.generate_reply()
+    
+    async def on_chat_message(self, message: str, ctx: ChatContext):
+        """
+        Called when a chat message is received.
+        """
+        logger.info(f"Received chat message: {message}")
+        # Generate a reply to the chat message
+        await self.session.generate_reply(ctx)
     
     # Function tools for the LLM
     
@@ -345,21 +352,6 @@ async def entrypoint(ctx: JobContext):
         logger.error(f"Failed to create agent session: {e}")
         raise
     
-    # Set up metrics collection
-    usage_collector = metrics.UsageCollector()
-    
-    @session.on("metrics_collected")
-    def _on_metrics_collected(ev: metrics.MetricsCollectedEvent):
-        metrics.log_metrics(ev.metrics)
-        usage_collector.collect(ev.metrics)
-    
-    async def log_usage():
-        summary = usage_collector.get_summary()
-        logger.info(f"Usage: {summary}")
-    
-    # Add shutdown callback to log usage
-    ctx.add_shutdown_callback(log_usage)
-    
     # Wait for a participant to join the room with a timeout and retry mechanism
     max_participant_wait_retries = 2
     participant_wait_timeout = 10.0  # Increased timeout
@@ -388,8 +380,13 @@ async def entrypoint(ctx: JobContext):
         await session.start(
             agent=RatauraAgent(),
             room=ctx.room,
-            room_input_options=RoomInputOptions(),
-            room_output_options=RoomOutputOptions(transcription_enabled=True),
+            room_input_options=RoomInputOptions(
+                chat_enabled=True,  # Enable chat input
+            ),
+            room_output_options=RoomOutputOptions(
+                transcription_enabled=True,
+                chat_enabled=True,  # Enable chat output
+            ),
         )
         logger.info("Agent session started successfully")
     except Exception as e:
