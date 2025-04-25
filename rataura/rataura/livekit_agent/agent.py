@@ -380,9 +380,7 @@ async def entrypoint(ctx: JobContext):
         await session.start(
             agent=RatauraAgent(),
             room=ctx.room,
-            room_input_options=RoomInputOptions(
-                chat_enabled=True,  # Enable chat input
-            ),
+            room_input_options=RoomInputOptions(),
             room_output_options=RoomOutputOptions(
                 transcription_enabled=True,
                 chat_enabled=True,  # Enable chat output
