@@ -4,6 +4,7 @@ This module implements a Livekit 1.0 worker that includes the LLM tool functions
 """
 
 import logging
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 from livekit.agents import (
@@ -75,9 +76,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_alliance_info_tool(
         self,
-        alliance_id=None,
-        alliance_name=None,
-    ):
+        alliance_id: Optional[int] = None,
+        alliance_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online alliance.
         
@@ -92,9 +93,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_character_info_tool(
         self,
-        character_id=None,
-        character_name=None,
-    ):
+        character_id: Optional[int] = None,
+        character_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online character.
         
@@ -109,9 +110,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_corporation_info_tool(
         self,
-        corporation_id=None,
-        corporation_name=None,
-    ):
+        corporation_id: Optional[int] = None,
+        corporation_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online corporation.
         
@@ -126,9 +127,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_item_info_tool(
         self,
-        type_id=None,
-        type_name=None,
-    ):
+        type_id: Optional[int] = None,
+        type_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online item type.
         
@@ -143,11 +144,11 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_market_prices_tool(
         self,
-        type_id=None,
-        type_name=None,
-        region_id=None,
-        region_name=None,
-    ):
+        type_id: Optional[int] = None,
+        type_name: Optional[str] = None,
+        region_id: Optional[int] = None,
+        region_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get market prices for EVE Online items.
         
@@ -164,10 +165,10 @@ class RatauraAgent(Agent):
     @function_tool
     async def search_entities_tool(
         self,
-        search,
-        categories=None,
-        strict=False,
-    ):
+        search: str,
+        categories: Optional[List[str]] = None,
+        strict: bool = False,
+    ) -> Dict[str, Any]:
         """
         Search for EVE Online entities by name.
         
@@ -183,9 +184,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_system_info_tool(
         self,
-        system_id=None,
-        system_name=None,
-    ):
+        system_id: Optional[int] = None,
+        system_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online solar system.
         
@@ -200,9 +201,9 @@ class RatauraAgent(Agent):
     @function_tool
     async def get_region_info_tool(
         self,
-        region_id=None,
-        region_name=None,
-    ):
+        region_id: Optional[int] = None,
+        region_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get information about an EVE Online region.
         
