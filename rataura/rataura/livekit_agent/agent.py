@@ -250,11 +250,7 @@ async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
     """
-    @session.on("conversation_item_added")
-    def conversation_item_added(msg):
-        """Logs the end of speech and adds a transcription segment.""" 
-        logger.info(f"Entity stopped speaking\n{str(msg)}")
-    
+      
     logger.info(f"Starting agent entrypoint for room: {ctx.room.name}")
     
     # Connect to the room
@@ -273,7 +269,11 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         llm=llm
     )
-    
+    @session.on("conversation_item_added")
+    def conversation_item_added(msg):
+        """Logs the end of speech and adds a transcription segment.""" 
+        logger.info(f"Entity stopped speaking\n{str(msg)}")
+            
     # Start the agent session with text input enabled
     await session.start(
         agent=RatauraAgent(),
