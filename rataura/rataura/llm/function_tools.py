@@ -317,17 +317,48 @@ async def get_character_info(character_id: Optional[int] = None, character_name:
     
     # Resolve character name to ID if provided
     if character_name and not character_id:
+        logger.info(f"Resolving character name '{character_name}' to ID")
         search_result = await esi_client.search(character_name, ["character"], strict=True)
         if "character" in search_result and search_result["character"]:
             character_id = search_result["character"][0]
+            logger.info(f"Resolved character name '{character_name}' to ID {character_id}")
         else:
+            logger.error(f"Character '{character_name}' not found")
             return {"error": f"Character '{character_name}' not found"}
     
     if not character_id:
+        logger.error("No character ID or name provided")
         return {"error": "No character ID or name provided"}
     
     try:
+        # Get basic character information
+        logger.info(f"Getting character info for ID {character_id}")
         character_info = await esi_client.get_character(character_id)
+        
+        # Enhance with corporation information
+        if "corporation_id" in character_info:
+            corp_id = character_info["corporation_id"]
+            logger.info(f"Getting corporation info for ID {corp_id}")
+            try:
+                corp_info = await esi_client.get_corporation(corp_id)
+                character_info["corporation_name"] = corp_info.get("name", "Unknown Corporation")
+                logger.info(f"Character belongs to corporation: {character_info['corporation_name']}")
+            except Exception as e:
+                logger.error(f"Error getting corporation info: {e}")
+                character_info["corporation_name"] = f"Unknown Corporation (ID: {corp_id})"
+        
+        # Enhance with alliance information if available
+        if "alliance_id" in character_info:
+            alliance_id = character_info["alliance_id"]
+            logger.info(f"Getting alliance info for ID {alliance_id}")
+            try:
+                alliance_info = await esi_client.get_alliance(alliance_id)
+                character_info["alliance_name"] = alliance_info.get("name", "Unknown Alliance")
+                logger.info(f"Character belongs to alliance: {character_info['alliance_name']}")
+            except Exception as e:
+                logger.error(f"Error getting alliance info: {e}")
+                character_info["alliance_name"] = f"Unknown Alliance (ID: {alliance_id})"
+        
         return character_info
     except Exception as e:
         logger.error(f"Error getting character info: {e}")
