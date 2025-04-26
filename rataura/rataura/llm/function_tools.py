@@ -106,6 +106,14 @@ FUNCTION_DEFINITIONS = [
                 "region_name": {
                     "type": "string",
                     "description": "The name of the region (will be resolved to an ID)"
+                },
+                "system_id": {
+                    "type": "integer",
+                    "description": "The ID of the solar system to filter by"
+                },
+                "system_name": {
+                    "type": "string",
+                    "description": "The name of the solar system to filter by"
                 }
             },
             "required": []
@@ -390,15 +398,17 @@ async def get_item_info(type_id: Optional[int] = None, type_name: Optional[str] 
         return {"error": f"Error getting item info: {str(e)}"}
 
 
-async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[str] = None, region_id: Optional[int] = None, region_name: Optional[str] = None) -> Dict[str, Any]:
+async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[str] = None, region_id: Optional[int] = None, region_name: Optional[str] = None, system_id: Optional[int] = None, system_name: Optional[str] = None) -> Dict[str, Any]:
     """
-    Get market prices for EVE Online items.
+    Get market prices for EVE Online items. Can search by region or specific solar system.
     
     Args:
         type_id (Optional[int], optional): The ID of the item type.
         type_name (Optional[str], optional): The name of the item type.
         region_id (Optional[int], optional): The ID of the region.
         region_name (Optional[str], optional): The name of the region.
+        system_id (Optional[int], optional): The ID of the solar system to filter by.
+        system_name (Optional[str], optional): The name of the solar system to filter by.
     
     Returns:
         Dict[str, Any]: Market prices for the item.
@@ -421,6 +431,23 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
     if not type_id:
         logger.warning("No item type ID or name provided")
         return {"error": "No item type ID or name provided"}
+    
+    # Resolve system name to ID if provided
+    system_filter_active = False
+    if system_name and not system_id:
+        logger.info(f"Resolving system name '{system_name}' to ID")
+        search_result = await esi_client.search(system_name, ["solar_system"], strict=True)
+        logger.info(f"Search result for system '{system_name}': {search_result}")
+        
+        if "solar_system" in search_result and search_result["solar_system"]:
+            system_id = search_result["solar_system"][0]
+            system_filter_active = True
+            logger.info(f"Resolved system name '{system_name}' to ID {system_id}")
+        else:
+            logger.warning(f"System '{system_name}' not found")
+            return {"error": f"System '{system_name}' not found"}
+    elif system_id:
+        system_filter_active = True
     
     # Resolve region name to ID if provided
     if region_name and not region_id:
@@ -468,6 +495,42 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
                 region_name = f"Region ID {region_id}"
                 
             return {"error": f"No market orders found for {type_name} in {region_name}"}
+        
+        # Filter by system if specified
+        if system_filter_active and system_id:
+            logger.info(f"Filtering market orders by system ID {system_id}")
+            
+            # Get system info for filtering
+            system_info = await esi_client.get_system(system_id)
+            system_name = system_info.get("name", f"System ID {system_id}")
+            
+            # We need to get station and structure information to filter by system
+            system_stations = []
+            
+            # Get all stations in the system
+            try:
+                stations = await esi_client.get(f"/universe/systems/{system_id}/")
+                if "stations" in stations:
+                    system_stations.extend(stations["stations"])
+                    logger.info(f"Found {len(stations['stations'])} stations in system {system_name}")
+            except Exception as e:
+                logger.error(f"Error getting stations for system {system_id}: {e}")
+            
+            # Filter orders by location in the specified system
+            filtered_orders = []
+            for order in market_orders:
+                location_id = order.get("location_id")
+                if location_id in system_stations:
+                    filtered_orders.append(order)
+            
+            logger.info(f"Filtered from {len(market_orders)} to {len(filtered_orders)} orders in system {system_name}")
+            
+            # If no orders in the system, return an error
+            if not filtered_orders:
+                return {"error": f"No market orders found for {type_name} in system {system_name}"}
+            
+            # Use the filtered orders for further processing
+            market_orders = filtered_orders
         
         # Process the orders
         buy_orders = [order for order in market_orders if order.get("is_buy_order", False)]
@@ -529,18 +592,23 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
             else:
                 best_sell_location = f"Structure ID {location_id}"
         
+        # Create location context for the formatted message
+        location_context = system_name if system_filter_active else region_info.get("name")
+        
         result = {
             "type_id": type_id,
             "type_name": type_info.get("name"),
             "region_id": region_id,
             "region_name": region_info.get("name"),
+            "system_id": system_id if system_filter_active else None,
+            "system_name": system_name if system_filter_active else None,
             "highest_buy": highest_buy,
             "lowest_sell": lowest_sell,
             "buy_orders_count": len(buy_orders),
             "sell_orders_count": len(sell_orders),
             "best_buy_location": best_buy_location,
             "best_sell_location": best_sell_location,
-            "formatted_info": f"Market prices for {type_info.get('name')} in {region_info.get('name')}:\n" +
+            "formatted_info": f"Market prices for {type_info.get('name')} in {location_context}:\n" +
                              (f"Highest buy: {highest_buy:,.2f} ISK ({len(buy_orders)} orders)" + 
                               (f" at {best_buy_location}" if best_buy_location else "") + "\n" 
                               if highest_buy else "No buy orders found\n") +
