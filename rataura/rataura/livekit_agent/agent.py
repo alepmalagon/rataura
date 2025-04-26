@@ -60,7 +60,6 @@ class RatauraAgent(Agent):
                 "You are knowledgeable about EVE Online game mechanics, items, ships, corporations, alliances, and more. "
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
-            llm=google.LLM(model="gemini-2.0-flash", temperature=0.7)
         )
         logger.info("RatauraAgent initialized successfully")
     
@@ -251,6 +250,11 @@ async def entrypoint(ctx: JobContext):
     """
     Entrypoint function for the worker.
     """
+    @session.on("conversation_item_added")
+    def conversation_item_added(msg):
+        """Logs the end of speech and adds a transcription segment.""" 
+        logger.info(f"Entity stopped speaking\n{str(msg)}")
+    
     logger.info(f"Starting agent entrypoint for room: {ctx.room.name}")
     
     # Connect to the room
@@ -261,17 +265,21 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Failed to connect to room: {e}")
         raise
+    await ctx.wait_for_participant()
+    llm = google.LLM(model="gemini-2.0-flash-001", temperature=0.7)
     
     # Create and start the agent session
     logger.info("Creating and starting agent session...")
-    session = AgentSession()
+    session = AgentSession(
+        llm=llm
+    )
     
     # Start the agent session with text input enabled
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
         room_input_options=RoomInputOptions(text_enabled=True),
-        room_output_options=RoomOutputOptions(transcription_enabled=True),
+        room_output_options=RoomOutputOptions(audio_enabled=False, transcription_enabled=True),
     )
     logger.info("Agent session started successfully")
 
