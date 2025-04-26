@@ -18,6 +18,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.agents.llm import function_tool, ChatContext
+from livekit.rtc.chat import ChatManager
 
 from rataura.config import settings
 from rataura.esi.client import get_esi_client
@@ -61,6 +62,7 @@ class RatauraAgent(Agent):
             ),
             llm=settings.llm_provider(),
         )
+        self.chat_manager = None
         logger.info("RatauraAgent initialized successfully")
     
     async def on_text(self, text: str, ctx: ChatContext) -> None:
@@ -69,8 +71,23 @@ class RatauraAgent(Agent):
         This is the main entry point for chat messages.
         """
         logger.info(f"Received text message: {text}")
+        
+        # Initialize chat manager if not already done
+        if self.chat_manager is None and ctx.room is not None:
+            self.chat_manager = ChatManager(ctx.room)
+            logger.info("ChatManager initialized")
+        
         # Generate a reply to the text message
-        await self.session.generate_reply(ctx)
+        response = await self.session.generate_reply(ctx)
+        
+        # Send the response back to the chat
+        if response and self.chat_manager:
+            logger.info(f"Sending response: {response}")
+            try:
+                await self.chat_manager.send_message(response)
+                logger.info("Response sent successfully")
+            except Exception as e:
+                logger.error(f"Error sending response: {e}")
     
     # Function tools for the LLM
     
