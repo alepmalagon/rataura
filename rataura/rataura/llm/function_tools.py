@@ -26,10 +26,9 @@ FUNCTION_DEFINITIONS = [
                 },
                 "alliance_name": {
                     "type": "string",
-                    "description": "The name of the alliance (will be resolved to an ID)"
+                    "description": "The name of the alliance"
                 }
-            },
-            "required": []
+            }
         }
     },
     {
@@ -188,7 +187,7 @@ async def get_alliance_info(alliance_id: Optional[int] = None, alliance_name: Op
         alliance_name (Optional[str], optional): The name of the alliance.
     
     Returns:
-        Dict[str, Any]: Information about the alliance.
+        Dict[str, Any]: Information about the alliance with IDs resolved to names.
     """
     esi_client = get_esi_client()
     
@@ -204,7 +203,91 @@ async def get_alliance_info(alliance_id: Optional[int] = None, alliance_name: Op
         return {"error": "No alliance ID or name provided"}
     
     try:
+        # Get basic alliance info
         alliance_info = await esi_client.get_alliance(alliance_id)
+        
+        # Resolve creator character ID to name
+        if "creator_id" in alliance_info:
+            try:
+                creator_info = await esi_client.get_character(alliance_info["creator_id"])
+                alliance_info["creator_name"] = creator_info.get("name", "Unknown")
+            except Exception as e:
+                logger.error(f"Error resolving creator name: {e}")
+                alliance_info["creator_name"] = "Unknown"
+        
+        # Resolve creator corporation ID to name
+        if "creator_corporation_id" in alliance_info:
+            try:
+                creator_corp_info = await esi_client.get_corporation(alliance_info["creator_corporation_id"])
+                alliance_info["creator_corporation_name"] = creator_corp_info.get("name", "Unknown")
+            except Exception as e:
+                logger.error(f"Error resolving creator corporation name: {e}")
+                alliance_info["creator_corporation_name"] = "Unknown"
+        
+        # Resolve executor corporation ID to name
+        if "executor_corporation_id" in alliance_info:
+            try:
+                executor_corp_info = await esi_client.get_corporation(alliance_info["executor_corporation_id"])
+                alliance_info["executor_corporation_name"] = executor_corp_info.get("name", "Unknown")
+            except Exception as e:
+                logger.error(f"Error resolving executor corporation name: {e}")
+                alliance_info["executor_corporation_name"] = "Unknown"
+        
+        # Resolve faction ID to name if present
+        if "faction_id" in alliance_info:
+            # Since there's no direct faction endpoint, we'll use a mapping
+            faction_names = {
+                500001: "Caldari State",
+                500002: "Minmatar Republic",
+                500003: "Amarr Empire",
+                500004: "Gallente Federation",
+                500005: "Jove Empire",
+                500006: "CONCORD Assembly",
+                500007: "Ammatar Mandate",
+                500008: "Khanid Kingdom",
+                500009: "The Syndicate",
+                500010: "Guristas Pirates",
+                500011: "Angel Cartel",
+                500012: "Blood Raider Covenant",
+                500013: "The InterBus",
+                500014: "ORE",
+                500015: "Thukker Tribe",
+                500016: "Servant Sisters of EVE",
+                500017: "Society of Conscious Thought",
+                500018: "Mordu's Legion Command",
+                500019: "Sansha's Nation",
+                500020: "Serpentis",
+                500021: "Unknown",
+                500022: "Unknown",
+                500023: "Unknown",
+                500024: "Unknown",
+                500025: "Unknown",
+                500026: "Unknown",
+                500027: "Unknown",
+                500028: "Unknown",
+                500029: "Unknown",
+                500030: "Unknown"
+            }
+            alliance_info["faction_name"] = faction_names.get(alliance_info["faction_id"], "Unknown Faction")
+        
+        # Format a human-readable response
+        if "name" in alliance_info and "ticker" in alliance_info:
+            response = f"{alliance_info['name']} ({alliance_info['ticker']})"
+            
+            if "date_founded" in alliance_info:
+                response += f" was founded on {alliance_info['date_founded']}."
+            
+            if "creator_name" in alliance_info and "creator_corporation_name" in alliance_info:
+                response += f" The creator was {alliance_info['creator_name']}, of corporation {alliance_info['creator_corporation_name']}."
+            
+            if "executor_corporation_name" in alliance_info:
+                response += f" The executor corporation is {alliance_info['executor_corporation_name']}."
+            
+            if "faction_name" in alliance_info:
+                response += f" They are aligned with the {alliance_info['faction_name']}."
+            
+            alliance_info["formatted_info"] = response
+        
         return alliance_info
     except Exception as e:
         logger.error(f"Error getting alliance info: {e}")

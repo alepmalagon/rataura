@@ -95,6 +95,11 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up alliance info for ID: {alliance_id}, Name: {alliance_name}")
         result = await get_alliance_info(alliance_id, alliance_name)
+        
+        # If we have a formatted_info field, return it directly for better readability
+        if "formatted_info" in result:
+            return {"info": result["formatted_info"]}
+        
         return result
     
     @function_tool
