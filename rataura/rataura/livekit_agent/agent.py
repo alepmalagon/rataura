@@ -159,6 +159,8 @@ class RatauraAgent(Agent):
         type_name: Optional[str] = None,
         region_id: Optional[int] = None,
         region_name: Optional[str] = None,
+        system_id: Optional[int] = None,
+        system_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Get market prices for EVE Online items. Can be used to find where an item is sold or bought and it's market value.
@@ -168,9 +170,11 @@ class RatauraAgent(Agent):
             type_name: The name of the item type (will be resolved to an ID)
             region_id: The ID of the region
             region_name: The name of the region (will be resolved to an ID)
+            system_id: The ID of the solar system to filter by
+            system_name: The name of the solar system to filter by
         """
-        logger.info(f"Looking up market prices for Type ID: {type_id}, Type Name: {type_name}, Region ID: {region_id}, Region Name: {region_name}")
-        result = await get_market_prices(type_id, type_name, region_id, region_name)
+        logger.info(f"Looking up market prices for Type ID: {type_id}, Type Name: {type_name}, Region ID: {region_id}, Region Name: {region_name}, System ID: {system_id}, System Name: {system_name}")
+        result = await get_market_prices(type_id, type_name, region_id, region_name, system_id, system_name)
         
         # If we have a formatted_info field, return it directly for better readability
         if "formatted_info" in result:
