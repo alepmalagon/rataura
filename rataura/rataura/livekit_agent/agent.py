@@ -116,6 +116,66 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up character info for ID: {character_id}, Name: {character_name}")
         result = await get_character_info(character_id, character_name)
+        
+        # Format a human-readable response
+        if "error" in result:
+            return result
+        
+        response = ""
+        if "name" in result:
+            response += f"{result['name']} is a "
+            
+            if "gender" in result:
+                response += f"{result['gender'].lower()} "
+            
+            response += "character"
+            
+            if "birthday" in result:
+                response += f" born on {result['birthday']}"
+            
+            if "bloodline_id" in result:
+                bloodlines = {
+                    1: "Deteis",
+                    2: "Civire",
+                    3: "Sebiestor",
+                    4: "Brutor",
+                    5: "Amarr",
+                    6: "Ni-Kunni",
+                    7: "Gallente",
+                    8: "Intaki",
+                    9: "Jin-Mei",
+                    10: "Khanid",
+                    11: "Vherokior",
+                    12: "Achura",
+                    13: "Drifter"
+                }
+                bloodline = bloodlines.get(result["bloodline_id"], "Unknown")
+                response += f", belonging to\nthe {bloodline} bloodline"
+            
+            if "race_id" in result:
+                races = {
+                    1: "Caldari",
+                    2: "Minmatar",
+                    3: "Amarr",
+                    4: "Gallente",
+                    5: "Jove",
+                    6: "Pirate"
+                }
+                race = races.get(result["race_id"], "Unknown")
+                response += f" and {race} race"
+            
+            response += "."
+            
+            # Add alliance and corporation info
+            if "alliance_name" in result and "corporation_name" in result:
+                response += f" They are a member of the {result['alliance_name']} and the corporation {result['corporation_name']}."
+            elif "corporation_name" in result:
+                response += f" They are a member of the corporation {result['corporation_name']}."
+            
+            if "security_status" in result:
+                response += f" Their security status is {result['security_status']}."
+        
+        result["formatted_info"] = response
         return result
     
     @function_tool
