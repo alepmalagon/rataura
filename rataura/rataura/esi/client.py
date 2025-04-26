@@ -267,16 +267,29 @@ class ESIClient:
             filtered_result = {}
             for category in categories:
                 category_key = category
-                # Map 'alliance' to 'alliances' for the response format
+                # Map category names to the response format
                 if category == 'alliance':
                     category_key = 'alliances'
                 elif category == 'character':
                     category_key = 'characters'
                 elif category == 'corporation':
                     category_key = 'corporations'
+                elif category == 'inventory_type':
+                    category_key = 'inventory_types'
+                elif category == 'region':
+                    category_key = 'regions'
+                elif category == 'solar_system':
+                    category_key = 'systems'
                 
-                if category_key in result:
+                # Initialize the category in the result
+                filtered_result[category] = []
+                
+                # Check if the category exists in the result
+                if category_key in result and result[category_key]:
                     filtered_result[category] = [item['id'] for item in result[category_key]]
+                    logger.info(f"Found {len(filtered_result[category])} results for '{search}' in category '{category}'")
+                else:
+                    logger.info(f"No results found for '{search}' in category '{category}'")
             
             return filtered_result
         except Exception as e:

@@ -407,34 +407,69 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
     
     # Resolve type name to ID if provided
     if type_name and not type_id:
+        logger.info(f"Resolving type name '{type_name}' to ID")
         search_result = await esi_client.search(type_name, ["inventory_type"], strict=True)
+        logger.info(f"Search result for type '{type_name}': {search_result}")
+        
         if "inventory_type" in search_result and search_result["inventory_type"]:
             type_id = search_result["inventory_type"][0]
+            logger.info(f"Resolved type name '{type_name}' to ID {type_id}")
         else:
+            logger.warning(f"Item type '{type_name}' not found")
             return {"error": f"Item type '{type_name}' not found"}
     
     if not type_id:
+        logger.warning("No item type ID or name provided")
         return {"error": "No item type ID or name provided"}
     
     # Resolve region name to ID if provided
     if region_name and not region_id:
+        logger.info(f"Resolving region name '{region_name}' to ID")
         search_result = await esi_client.search(region_name, ["region"], strict=True)
+        logger.info(f"Search result for region '{region_name}': {search_result}")
+        
         if "region" in search_result and search_result["region"]:
             region_id = search_result["region"][0]
+            logger.info(f"Resolved region name '{region_name}' to ID {region_id}")
         else:
+            logger.warning(f"Region '{region_name}' not found")
             return {"error": f"Region '{region_name}' not found"}
     
     # If no region is specified, use The Forge (Jita)
     if not region_id:
         region_id = 10000002  # The Forge
+        logger.info(f"No region specified, using The Forge (ID: {region_id})")
     
     try:
         # Get market orders for the item in the region
+        logger.info(f"Getting market orders for type ID {type_id} in region ID {region_id}")
         market_orders = await esi_client.get_market_orders(region_id, type_id)
+        logger.info(f"Found {len(market_orders)} market orders")
+        
+        if not market_orders:
+            logger.warning(f"No market orders found for type ID {type_id} in region ID {region_id}")
+            
+            # Get item info for better error message
+            try:
+                type_info = await esi_client.get_type(type_id)
+                type_name = type_info.get("name", f"Type ID {type_id}")
+            except Exception:
+                type_name = f"Type ID {type_id}"
+                
+            # Get region info for better error message
+            try:
+                region_info = await esi_client.get_region(region_id)
+                region_name = region_info.get("name", f"Region ID {region_id}")
+            except Exception:
+                region_name = f"Region ID {region_id}"
+                
+            return {"error": f"No market orders found for {type_name} in {region_name}"}
         
         # Process the orders
         buy_orders = [order for order in market_orders if order.get("is_buy_order", False)]
         sell_orders = [order for order in market_orders if not order.get("is_buy_order", False)]
+        
+        logger.info(f"Found {len(buy_orders)} buy orders and {len(sell_orders)} sell orders")
         
         # Calculate statistics
         highest_buy = max(buy_orders, key=lambda x: x["price"])["price"] if buy_orders else None
@@ -446,7 +481,7 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
         # Get region info
         region_info = await esi_client.get_region(region_id)
         
-        return {
+        result = {
             "type_id": type_id,
             "type_name": type_info.get("name"),
             "region_id": region_id,
@@ -456,8 +491,11 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
             "buy_orders_count": len(buy_orders),
             "sell_orders_count": len(sell_orders),
         }
+        
+        logger.info(f"Market price result: {result}")
+        return result
     except Exception as e:
-        logger.error(f"Error getting market prices: {e}")
+        logger.error(f"Error getting market prices: {e}", exc_info=True)
         return {"error": f"Error getting market prices: {str(e)}"}
 
 
