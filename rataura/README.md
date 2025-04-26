@@ -56,7 +56,7 @@ EVE_CALLBACK_URL=your_callback_url
 
 # Gemini Configuration (required for both Discord bot and Livekit agent)
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.0-flash-exp  # Optional, defaults to gemini-2.0-flash-exp
+GEMINI_MODEL=gemini-2.0-flash  # Optional, defaults to gemini-2.0-flash
 
 # Livekit Configuration (required only for Livekit agent)
 LIVEKIT_API_KEY=your_livekit_api_key
@@ -71,7 +71,7 @@ If you only want to run the Livekit agent, you need at minimum:
 ```
 # Gemini Configuration
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.0-flash-exp  # Optional, defaults to gemini-2.0-flash-exp
+GEMINI_MODEL=gemini-2.0-flash  # Optional, defaults to gemini-2.0-flash
 
 # Livekit Configuration
 LIVEKIT_API_KEY=your_livekit_api_key
@@ -107,12 +107,11 @@ The agent will respond to your messages and use the EVE Online ESI API to fetch 
 
 ### Chat Implementation Details
 
-The Livekit agent uses the `ChatManager` from the `livekit.rtc.chat` module to handle chat messages. The implementation:
+The Livekit agent uses the standard Livekit Agents 1.0 text handling mechanism:
 
-1. Initializes a `ChatManager` instance when the first message is received
-2. Uses the `on_text` method to receive incoming chat messages
-3. Generates a response using the LLM with function calling
-4. Sends the response back to the chat using `chat_manager.send_message()`
+1. The agent implements the `on_text` method to receive incoming chat messages from the `lk.chat` topic
+2. Generates a response using the LLM with function calling
+3. The response is automatically sent to the `lk.transcription` topic by the AgentSession
 
 This bidirectional communication allows users to have a conversation with the agent in the Livekit Agent Playground.
 
@@ -126,7 +125,7 @@ If the agent is not responding to chat messages:
 2. Make sure you're using the correct method name: `on_text` instead of `on_chat_message`
 3. Verify that `text_enabled=True` is set in `RoomInputOptions` and `transcription_enabled=True` in `RoomOutputOptions`
 4. Ensure that the agent is properly connected to the room
-5. Check that the `livekit-rtc` package is installed (required for `ChatManager`)
+5. Check that you're using the correct Livekit Agents version (1.0.0rc1 or higher)
 
 ### ESI API Errors
 
@@ -142,7 +141,6 @@ This project uses:
 - Pydantic v2 with `pydantic-settings` package for configuration
 - Google's Generative AI Python SDK for Gemini integration
 - Livekit Agents 1.0 RC for the agent functionality
-- Livekit RTC for chat functionality
 - Discord.py for the Discord bot integration
 
 Make sure to install all dependencies from the requirements.txt file.

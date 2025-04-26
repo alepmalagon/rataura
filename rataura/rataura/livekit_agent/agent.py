@@ -18,7 +18,6 @@ from livekit.agents import (
     cli,
 )
 from livekit.agents.llm import function_tool, ChatContext
-from livekit.rtc.chat import ChatManager
 from livekit.plugins import google
 
 from rataura.config import settings
@@ -63,7 +62,6 @@ class RatauraAgent(Agent):
             ),
             llm=google.LLM(model="gemini-2.0-flash", temperature=0.7)
         )
-        self.chat_manager = None
         logger.info("RatauraAgent initialized successfully")
     
     async def on_text(self, text: str, ctx: ChatContext) -> None:
@@ -73,22 +71,12 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Received text message: {text}")
         
-        # Initialize chat manager if not already done
-        if self.chat_manager is None and ctx.room is not None:
-            self.chat_manager = ChatManager(ctx.room)
-            logger.info("ChatManager initialized")
-        
         # Generate a reply to the text message
         response = await self.session.generate_reply(ctx)
         
-        # Send the response back to the chat
-        if response and self.chat_manager:
-            logger.info(f"Sending response: {response}")
-            try:
-                await self.chat_manager.send_message(response)
-                logger.info("Response sent successfully")
-            except Exception as e:
-                logger.error(f"Error sending response: {e}")
+        # The response will be automatically sent to the transcription stream
+        # by the AgentSession
+        logger.info(f"Generated response: {response}")
     
     # Function tools for the LLM
     
@@ -277,13 +265,10 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(text_enabled=True, audio_enabled=False),
-        room_output_options=RoomOutputOptions(transcription_enabled=True, audio_enabled=False),
+        room_input_options=RoomInputOptions(text_enabled=True),
+        room_output_options=RoomOutputOptions(transcription_enabled=True),
     )
     logger.info("Agent session started successfully")
-    
-    # Run the agent session 
-    # await session.say("Greetings from Rataura! How can I help you today?")
 
 
 if __name__ == "__main__":
