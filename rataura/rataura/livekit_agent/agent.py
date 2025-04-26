@@ -6,7 +6,7 @@ This module implements a Livekit 1.0 worker that includes the LLM tool functions
 import logging
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
-
+import asyncio
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -18,6 +18,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.agents.llm import function_tool, ChatContext
+from livekit.plugins import google
 
 from rataura.config import settings
 from rataura.esi.client import get_esi_client
@@ -59,7 +60,7 @@ class RatauraAgent(Agent):
                 "You are knowledgeable about EVE Online game mechanics, items, ships, corporations, alliances, and more. "
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
-            llm=settings.llm_provider(),
+            llm=google.LLM(model="gemini-2.0-flash", temperature=0.7)
         )
         logger.info("RatauraAgent initialized successfully")
     
@@ -259,10 +260,13 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(text_enabled=True),
-        room_output_options=RoomOutputOptions(transcription_enabled=True),
+        room_input_options=RoomInputOptions(text_enabled=True, audio_enabled=False),
+        room_output_options=RoomOutputOptions(transcription_enabled=True, audio_enabled=False),
     )
     logger.info("Agent session started successfully")
+    
+    # Run the agent session 
+    # await session.say("Greetings from Rataura! How can I help you today?")
 
 
 if __name__ == "__main__":
