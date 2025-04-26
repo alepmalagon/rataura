@@ -490,6 +490,9 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
             "lowest_sell": lowest_sell,
             "buy_orders_count": len(buy_orders),
             "sell_orders_count": len(sell_orders),
+            "formatted_info": f"Market prices for {type_info.get('name')} in {region_info.get('name')}:\n" +
+                             (f"Highest buy: {highest_buy:,.2f} ISK ({len(buy_orders)} orders)\n" if highest_buy else "No buy orders found\n") +
+                             (f"Lowest sell: {lowest_sell:,.2f} ISK ({len(sell_orders)} orders)" if lowest_sell else "No sell orders found")
         }
         
         logger.info(f"Market price result: {result}")

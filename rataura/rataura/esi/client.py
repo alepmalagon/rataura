@@ -241,7 +241,13 @@ class ESIClient:
         if type_id:
             params["type_id"] = type_id
         
-        return await self.get(f"/markets/regions/{region_id}/orders/", params=params)
+        try:
+            logger.info(f"Fetching market orders for region {region_id}, type {type_id}, page {page}")
+            return await self.get(f"/markets/{region_id}/orders/", params=params)
+        except Exception as e:
+            logger.error(f"Error fetching market orders: {e}")
+            # Return empty list on error instead of raising exception
+            return []
     
     # Search endpoints
     
