@@ -6,6 +6,7 @@ pydantic-settings>=2.0.0
 # Livekit dependencies
 livekit-agents>=1.0.0rc1
 livekit-plugins>=1.0.0rc1
+livekit-rtc>=1.0.0rc1
 
 # LLM dependencies
 google-generativeai>=0.3.0
