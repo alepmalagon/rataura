@@ -161,7 +161,7 @@ class RatauraAgent(Agent):
         region_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Get market prices for EVE Online items.
+        Get market prices for EVE Online items. Can be used to find where an item is sold or bought and it's market value.
         
         Args:
             type_id: The ID of the item type
