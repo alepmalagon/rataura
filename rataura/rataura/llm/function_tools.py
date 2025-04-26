@@ -682,17 +682,48 @@ async def get_system_info(system_id: Optional[int] = None, system_name: Optional
     
     # Resolve system name to ID if provided
     if system_name and not system_id:
+        logger.info(f"Resolving system name '{system_name}' to ID")
         search_result = await esi_client.search(system_name, ["solar_system"], strict=True)
         if "solar_system" in search_result and search_result["solar_system"]:
             system_id = search_result["solar_system"][0]
+            logger.info(f"Resolved system name '{system_name}' to ID {system_id}")
         else:
+            logger.error(f"Solar system '{system_name}' not found")
             return {"error": f"Solar system '{system_name}' not found"}
     
     if not system_id:
+        logger.error("No solar system ID or name provided")
         return {"error": "No solar system ID or name provided"}
     
     try:
+        # Get system information
         system_info = await esi_client.get_system(system_id)
+        
+        # Get constellation information
+        constellation_id = system_info.get("constellation_id")
+        constellation_name = "Unknown"
+        region_name = "Unknown"
+        
+        if constellation_id:
+            try:
+                constellation_info = await esi_client.get_constellation(constellation_id)
+                constellation_name = constellation_info.get("name", "Unknown")
+                
+                # Get region information
+                region_id = constellation_info.get("region_id")
+                if region_id:
+                    try:
+                        region_info = await esi_client.get_region(region_id)
+                        region_name = region_info.get("name", "Unknown")
+                    except Exception as e:
+                        logger.error(f"Error getting region info: {e}")
+            except Exception as e:
+                logger.error(f"Error getting constellation info: {e}")
+        
+        # Add human-readable names to the response
+        system_info["constellation_name"] = constellation_name
+        system_info["region_name"] = region_name
+        
         return system_info
     except Exception as e:
         logger.error(f"Error getting solar system info: {e}")
@@ -714,17 +745,38 @@ async def get_region_info(region_id: Optional[int] = None, region_name: Optional
     
     # Resolve region name to ID if provided
     if region_name and not region_id:
+        logger.info(f"Resolving region name '{region_name}' to ID")
         search_result = await esi_client.search(region_name, ["region"], strict=True)
+        logger.info(f"Search result for region '{region_name}': {search_result}")
+        
         if "region" in search_result and search_result["region"]:
             region_id = search_result["region"][0]
+            logger.info(f"Resolved region name '{region_name}' to ID {region_id}")
         else:
+            logger.error(f"Region '{region_name}' not found")
             return {"error": f"Region '{region_name}' not found"}
     
     if not region_id:
+        logger.error("No region ID or name provided")
         return {"error": "No region ID or name provided"}
     
     try:
         region_info = await esi_client.get_region(region_id)
+        
+        # Get constellation names if available
+        if "constellations" in region_info and region_info["constellations"]:
+            constellation_names = []
+            for constellation_id in region_info["constellations"][:5]:  # Limit to first 5 to avoid too many requests
+                try:
+                    constellation_info = await esi_client.get_constellation(constellation_id)
+                    constellation_names.append(constellation_info.get("name", f"Constellation ID {constellation_id}"))
+                except Exception as e:
+                    logger.error(f"Error getting constellation info: {e}")
+                    constellation_names.append(f"Constellation ID {constellation_id}")
+            
+            # Add constellation names to the response
+            region_info["constellation_names"] = constellation_names
+        
         return region_info
     except Exception as e:
         logger.error(f"Error getting region info: {e}")
