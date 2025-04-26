@@ -434,6 +434,7 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
     
     # Resolve system name to ID if provided
     system_filter_active = False
+    system_region_id = None
     if system_name and not system_id:
         logger.info(f"Resolving system name '{system_name}' to ID")
         search_result = await esi_client.search(system_name, ["solar_system"], strict=True)
@@ -448,6 +449,26 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
             return {"error": f"System '{system_name}' not found"}
     elif system_id:
         system_filter_active = True
+    
+    # If we're filtering by system, determine which region it belongs to
+    if system_filter_active and system_id:
+        try:
+            system_info = await esi_client.get_system(system_id)
+            system_name = system_info.get("name", f"System ID {system_id}")
+            # Get the constellation to find the region
+            constellation_id = system_info.get("constellation_id")
+            if constellation_id:
+                constellation_info = await esi_client.get(f"/universe/constellations/{constellation_id}/")
+                system_region_id = constellation_info.get("region_id")
+                if system_region_id:
+                    logger.info(f"System {system_name} (ID: {system_id}) is in region ID {system_region_id}")
+                    # If region was specified but doesn't match the system's region, warn about it
+                    if region_id and region_id != system_region_id:
+                        logger.warning(f"Specified region ID {region_id} doesn't match system's region ID {system_region_id}. Using system's region.")
+                    # Use the system's region
+                    region_id = system_region_id
+        except Exception as e:
+            logger.error(f"Error determining region for system {system_id}: {e}")
     
     # Resolve region name to ID if provided
     if region_name and not region_id:
@@ -500,28 +521,8 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
         if system_filter_active and system_id:
             logger.info(f"Filtering market orders by system ID {system_id}")
             
-            # Get system info for filtering
-            system_info = await esi_client.get_system(system_id)
-            system_name = system_info.get("name", f"System ID {system_id}")
-            
-            # We need to get station and structure information to filter by system
-            system_stations = []
-            
-            # Get all stations in the system
-            try:
-                stations = await esi_client.get(f"/universe/systems/{system_id}/")
-                if "stations" in stations:
-                    system_stations.extend(stations["stations"])
-                    logger.info(f"Found {len(stations['stations'])} stations in system {system_name}")
-            except Exception as e:
-                logger.error(f"Error getting stations for system {system_id}: {e}")
-            
-            # Filter orders by location in the specified system
-            filtered_orders = []
-            for order in market_orders:
-                location_id = order.get("location_id")
-                if location_id in system_stations:
-                    filtered_orders.append(order)
+            # Filter orders by system_id directly
+            filtered_orders = [order for order in market_orders if order.get("system_id") == system_id]
             
             logger.info(f"Filtered from {len(market_orders)} to {len(filtered_orders)} orders in system {system_name}")
             
@@ -555,7 +556,6 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
         # Get location information for best orders
         best_buy_location = None
         best_sell_location = None
-        
         if best_buy_order and "location_id" in best_buy_order:
             location_id = best_buy_order["location_id"]
             # Check if it's a station (range 60000000-64000000)
