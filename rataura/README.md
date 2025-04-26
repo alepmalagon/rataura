@@ -105,6 +105,17 @@ The Livekit agent is a text-only agent that responds to chat messages in the Liv
 
 The agent will respond to your messages and use the EVE Online ESI API to fetch game data based on your queries.
 
+### Chat Implementation Details
+
+The Livekit agent uses the `ChatManager` from the `livekit.rtc.chat` module to handle chat messages. The implementation:
+
+1. Initializes a `ChatManager` instance when the first message is received
+2. Uses the `on_text` method to receive incoming chat messages
+3. Generates a response using the LLM with function calling
+4. Sends the response back to the chat using `chat_manager.send_message()`
+
+This bidirectional communication allows users to have a conversation with the agent in the Livekit Agent Playground.
+
 ## Troubleshooting
 
 ### Chat Messages Not Working
@@ -113,8 +124,9 @@ If the agent is not responding to chat messages:
 
 1. Check the logs for any errors related to text streams
 2. Make sure you're using the correct method name: `on_text` instead of `on_chat_message`
-3. Verify that `text_enabled=True` is set in both `RoomInputOptions` and `RoomOutputOptions`
+3. Verify that `text_enabled=True` is set in `RoomInputOptions` and `transcription_enabled=True` in `RoomOutputOptions`
 4. Ensure that the agent is properly connected to the room
+5. Check that the `livekit-rtc` package is installed (required for `ChatManager`)
 
 ### ESI API Errors
 
@@ -130,6 +142,7 @@ This project uses:
 - Pydantic v2 with `pydantic-settings` package for configuration
 - Google's Generative AI Python SDK for Gemini integration
 - Livekit Agents 1.0 RC for the agent functionality
+- Livekit RTC for chat functionality
 - Discord.py for the Discord bot integration
 
 Make sure to install all dependencies from the requirements.txt file.
