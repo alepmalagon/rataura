@@ -446,6 +446,10 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
         market_orders = await esi_client.get_market_orders(region_id, type_id)
         logger.info(f"Found {len(market_orders)} market orders")
         
+        # Log the first order to see its structure
+        if market_orders and len(market_orders) > 0:
+            logger.info(f"Sample market order: {market_orders[0]}")
+        
         if not market_orders:
             logger.warning(f"No market orders found for type ID {type_id} in region ID {region_id}")
             
@@ -475,11 +479,55 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
         highest_buy = max(buy_orders, key=lambda x: x["price"])["price"] if buy_orders else None
         lowest_sell = min(sell_orders, key=lambda x: x["price"])["price"] if sell_orders else None
         
+        # Get best buy and sell orders with location information
+        best_buy_order = max(buy_orders, key=lambda x: x["price"]) if buy_orders else None
+        best_sell_order = min(sell_orders, key=lambda x: x["price"]) if sell_orders else None
+        
         # Get item info
         type_info = await esi_client.get_type(type_id)
         
         # Get region info
         region_info = await esi_client.get_region(region_id)
+        
+        # Get location information for best orders
+        best_buy_location = None
+        best_sell_location = None
+        
+        if best_buy_order and "location_id" in best_buy_order:
+            location_id = best_buy_order["location_id"]
+            # Check if it's a station (range 60000000-64000000)
+            if 60000000 <= location_id < 64000000:
+                try:
+                    station_info = await esi_client.get(f"/universe/stations/{location_id}/")
+                    best_buy_location = f"{station_info.get('name', 'Unknown Station')}"
+                    # Get the system name
+                    if "system_id" in station_info:
+                        system_info = await esi_client.get_system(station_info["system_id"])
+                        best_buy_location = f"{station_info.get('name', 'Unknown Station')} in {system_info.get('name', 'Unknown System')}"
+                except Exception as e:
+                    logger.error(f"Error getting station info: {e}")
+                    best_buy_location = f"Station ID {location_id}"
+            # Check if it's a structure (not in the standard ID ranges)
+            else:
+                best_buy_location = f"Structure ID {location_id}"
+        
+        if best_sell_order and "location_id" in best_sell_order:
+            location_id = best_sell_order["location_id"]
+            # Check if it's a station (range 60000000-64000000)
+            if 60000000 <= location_id < 64000000:
+                try:
+                    station_info = await esi_client.get(f"/universe/stations/{location_id}/")
+                    best_sell_location = f"{station_info.get('name', 'Unknown Station')}"
+                    # Get the system name
+                    if "system_id" in station_info:
+                        system_info = await esi_client.get_system(station_info["system_id"])
+                        best_sell_location = f"{station_info.get('name', 'Unknown Station')} in {system_info.get('name', 'Unknown System')}"
+                except Exception as e:
+                    logger.error(f"Error getting station info: {e}")
+                    best_sell_location = f"Station ID {location_id}"
+            # Check if it's a structure (not in the standard ID ranges)
+            else:
+                best_sell_location = f"Structure ID {location_id}"
         
         result = {
             "type_id": type_id,
@@ -490,9 +538,15 @@ async def get_market_prices(type_id: Optional[int] = None, type_name: Optional[s
             "lowest_sell": lowest_sell,
             "buy_orders_count": len(buy_orders),
             "sell_orders_count": len(sell_orders),
+            "best_buy_location": best_buy_location,
+            "best_sell_location": best_sell_location,
             "formatted_info": f"Market prices for {type_info.get('name')} in {region_info.get('name')}:\n" +
-                             (f"Highest buy: {highest_buy:,.2f} ISK ({len(buy_orders)} orders)\n" if highest_buy else "No buy orders found\n") +
-                             (f"Lowest sell: {lowest_sell:,.2f} ISK ({len(sell_orders)} orders)" if lowest_sell else "No sell orders found")
+                             (f"Highest buy: {highest_buy:,.2f} ISK ({len(buy_orders)} orders)" + 
+                              (f" at {best_buy_location}" if best_buy_location else "") + "\n" 
+                              if highest_buy else "No buy orders found\n") +
+                             (f"Lowest sell: {lowest_sell:,.2f} ISK ({len(sell_orders)} orders)" + 
+                              (f" at {best_sell_location}" if best_sell_location else "")
+                              if lowest_sell else "No sell orders found")
         }
         
         logger.info(f"Market price result: {result}")
