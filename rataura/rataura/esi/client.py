@@ -197,6 +197,18 @@ class ESIClient:
         """
         return await self.get(f"/universe/systems/{system_id}/")
     
+    async def get_constellation(self, constellation_id: int) -> Dict[str, Any]:
+        """
+        Get information about a constellation.
+        
+        Args:
+            constellation_id (int): The ID of the constellation.
+        
+        Returns:
+            Dict[str, Any]: Information about the constellation.
+        """
+        return await self.get(f"/universe/constellations/{constellation_id}/")
+    
     async def get_region(self, region_id: int) -> Dict[str, Any]:
         """
         Get information about a region.

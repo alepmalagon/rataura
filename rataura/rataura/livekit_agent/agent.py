@@ -220,6 +220,40 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up system info for ID: {system_id}, Name: {system_name}")
         result = await get_system_info(system_id, system_name)
+        
+        # Format a human-readable response
+        if "error" in result:
+            return result
+        
+        system_name = result.get("name", f"System ID {system_id}")
+        constellation_name = result.get("constellation_name", "Unknown")
+        region_name = result.get("region_name", "Unknown")
+        
+        # Create a formatted response
+        formatted_response = f"{system_name} is located in the {constellation_name} constellation in the {region_name} region."
+        
+        # Add security status if available
+        if "security_status" in result:
+            security = result["security_status"]
+            security_level = "high-security" if security >= 0.5 else "low-security" if security > 0.0 else "null-security"
+            formatted_response += f" It is a {security_level} system with a security rating of {security:.1f}."
+        
+        # Add planets if available
+        if "planets" in result and result["planets"]:
+            planet_count = len(result["planets"])
+            formatted_response += f" The system contains {planet_count} planet{'s' if planet_count != 1 else ''}."
+        
+        # Add stargates if available
+        if "stargates" in result and result["stargates"]:
+            stargate_count = len(result["stargates"])
+            formatted_response += f" There {'are' if stargate_count != 1 else 'is'} {stargate_count} stargate{'s' if stargate_count != 1 else ''}."
+        
+        # Add stations if available
+        if "stations" in result and result["stations"]:
+            station_count = len(result["stations"])
+            formatted_response += f" The system has {station_count} station{'s' if station_count != 1 else ''}."
+        
+        result["formatted_info"] = formatted_response
         return result
     
     @function_tool
@@ -237,6 +271,31 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up region info for ID: {region_id}, Name: {region_name}")
         result = await get_region_info(region_id, region_name)
+        
+        # Format a human-readable response
+        if "error" in result:
+            return result
+        
+        region_name = result.get("name", f"Region ID {region_id}")
+        
+        # Create a formatted response
+        formatted_response = f"{region_name} is a region in EVE Online."
+        
+        # Add constellations if available
+        if "constellations" in result and result["constellations"]:
+            constellation_count = len(result["constellations"])
+            formatted_response += f" It contains {constellation_count} constellation{'s' if constellation_count != 1 else ''}."
+        
+        # Add description if available
+        if "description" in result and result["description"]:
+            # Clean up HTML tags from description
+            description = result["description"].replace("<br>", " ").replace("<br/>", " ")
+            # Truncate if too long
+            if len(description) > 200:
+                description = description[:200] + "..."
+            formatted_response += f" {description}"
+        
+        result["formatted_info"] = formatted_response
         return result
 
 
