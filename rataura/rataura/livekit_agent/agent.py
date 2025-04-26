@@ -171,6 +171,34 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up market prices for Type ID: {type_id}, Type Name: {type_name}, Region ID: {region_id}, Region Name: {region_name}")
         result = await get_market_prices(type_id, type_name, region_id, region_name)
+        
+        # Format a human-readable response
+        if "error" in result:
+            logger.warning(f"Error in market prices: {result['error']}")
+            return result
+        
+        # Format the response
+        type_name = result.get("type_name", "Unknown Item")
+        region_name = result.get("region_name", "Unknown Region")
+        highest_buy = result.get("highest_buy")
+        lowest_sell = result.get("lowest_sell")
+        buy_orders_count = result.get("buy_orders_count", 0)
+        sell_orders_count = result.get("sell_orders_count", 0)
+        
+        response = f"Market prices for {type_name} in {region_name}:\n"
+        
+        if highest_buy is not None:
+            response += f"Highest buy: {highest_buy:,.2f} ISK ({buy_orders_count} orders)\n"
+        else:
+            response += f"No buy orders found\n"
+            
+        if lowest_sell is not None:
+            response += f"Lowest sell: {lowest_sell:,.2f} ISK ({sell_orders_count} orders)"
+        else:
+            response += f"No sell orders found"
+        
+        result["formatted_info"] = response
+        logger.info(f"Formatted market price response: {response}")
         return result
     
     @function_tool
