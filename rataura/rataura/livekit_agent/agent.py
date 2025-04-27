@@ -44,16 +44,18 @@ load_dotenv()
 
 class RatauraAgent(Agent):
     """
-    Livekit agent for the Rataura application with voice support.
+    Livekit agent for the Rataura application with configurable voice/text support.
     """
     
     def __init__(self) -> None:
         """
-        Initialize the Rataura agent with voice capabilities.
+        Initialize the Rataura agent with configurable voice/text capabilities.
         """
-        logger.info("Initializing RatauraAgent with voice support...")
-        super().__init__(
-            instructions=(
+        mode = "voice and text" if settings.voice_enabled else "text-only"
+        logger.info(f"Initializing RatauraAgent in {mode} mode...")
+        
+        agent_args = {
+            "instructions": (
                 "You are Rataura, a helpful assistant for EVE Online players. "
                 "You have access to the EVE Online ESI API through function calls. "
                 "Use these functions to get accurate information about the game. "
@@ -62,19 +64,31 @@ class RatauraAgent(Agent):
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
             # Use Gemini multimodal model for LLM
-            llm=google.beta.realtime.RealtimeModel(),
-            # Use silero for Voice Activity Detection
-            vad=silero.VAD.load(),
-        )
-        logger.info("RatauraAgent initialized successfully with voice support")
+            "llm": google.beta.realtime.RealtimeModel(),
+        }
+        
+        # Only add VAD if voice is enabled
+        if settings.voice_enabled:
+            agent_args["vad"] = silero.VAD.load()
+            
+        super().__init__(**agent_args)
+        
+        logger.info(f"RatauraAgent initialized successfully in {mode} mode")
     
     async def on_enter(self):
         """
         Called when the agent enters the room.
         """
         logger.info("Agent entered the room, sending introduction")
+        
+        # Customize introduction based on mode
+        if settings.voice_enabled:
+            intro_instructions = "Introduce yourself as Rataura, a voice and text assistant for EVE Online. Keep it brief and friendly."
+        else:
+            intro_instructions = "Introduce yourself as Rataura, a text assistant for EVE Online. Keep it brief and friendly."
+            
         self.session.generate_reply(
-            instructions="Introduce yourself as Rataura, a voice assistant for EVE Online. Keep it brief and friendly."
+            instructions=intro_instructions
         )
     
     async def on_text(self, text: str, ctx: ChatContext) -> None:
@@ -464,23 +478,32 @@ async def entrypoint(ctx: JobContext):
         """Logs the end of speech and adds a transcription segment.""" 
         logger.info(f"Entity stopped speaking\n{str(msg)}")
     
-    # Start the agent session with voice capabilities
+    # Configure room options based on voice_enabled setting
+    mode = "voice and text" if settings.voice_enabled else "text-only"
+    logger.info(f"Starting agent session in {mode} mode")
+    
+    # Configure input options
+    input_options = RoomInputOptions(
+        audio_enabled=settings.voice_enabled,  # Only enable audio if voice is enabled
+        video_enabled=False,  # Always disable video
+        text_enabled=True,    # Always enable text
+    )
+    
+    # Configure output options
+    output_options = RoomOutputOptions(
+        audio_enabled=settings.voice_enabled,  # Only enable audio output if voice is enabled
+        transcription_enabled=True,  # Always enable transcription
+    )
+    
+    # Start the agent session with the configured options
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
-        # Enable audio input but disable video
-        room_input_options=RoomInputOptions(
-            audio_enabled=True,
-            video_enabled=False,
-            text_enabled=True
-        ),
-        # Enable audio output and transcription
-        room_output_options=RoomOutputOptions(
-            audio_enabled=True,
-            transcription_enabled=True
-        ),
+        room_input_options=input_options,
+        room_output_options=output_options,
     )
-    logger.info("Agent session started successfully with voice support")
+    
+    logger.info(f"Agent session started successfully in {mode} mode")
 
 
 if __name__ == "__main__":
