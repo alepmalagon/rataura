@@ -1258,5 +1258,5 @@ async def get_killmail_info(
     except Exception as e:
         logger.error(f"Error getting killmail info: {e}", exc_info=True)
         return {"error": f"Error getting killmail info: {str(e)}"}
-                                except Exception:
-                                    entity_name = f"Corporation ID {corporation_id}"
+    except Exception:
+        entity_name = f"Corporation ID {corporation_id}"
