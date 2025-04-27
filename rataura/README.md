@@ -14,6 +14,7 @@ Rataura is a Discord bot and Livekit agent that allows users to interact with EV
 - Access to EVE Online ESI API data
 - Support for both public and authenticated ESI endpoints
 - Function calling to fetch specific game data
+- Integration with zKillboard for killmail and ship fitting data
 
 ## Components
 
@@ -32,6 +33,17 @@ The ESI API client provides access to the EVE Online ESI API. It handles authent
 ### LLM Function Tools
 
 The LLM function tools allow the agent to fetch specific game data based on user queries. These tools are used by both the Discord bot and the Livekit agent.
+
+#### Available Function Tools
+
+- **Alliance Information**: Get details about EVE Online alliances
+- **Character Information**: Get details about EVE Online characters
+- **Corporation Information**: Get details about EVE Online corporations
+- **Item Information**: Get details about EVE Online items
+- **Market Prices**: Get market prices for items in specific regions or systems
+- **System Information**: Get details about solar systems
+- **Region Information**: Get details about regions
+- **Killmail Information**: Get recent killmails for characters, corporations, alliances, or ship types from zKillboard
 
 ## Installation
 
@@ -105,6 +117,19 @@ The Livekit agent is a text-only agent that responds to chat messages in the Liv
 
 The agent will respond to your messages and use the EVE Online ESI API to fetch game data based on your queries.
 
+### Example Queries
+
+Here are some example queries you can ask the agent:
+
+- "Tell me about the Minmatar Fleet Alliance"
+- "Who is Ibn Khatab?"
+- "What's the price of a Rifter in Jita?"
+- "Where is the system of Hek?"
+- "Tell me about The Forge region"
+- "Show me recent losses for Ibn Khatab"
+- "What ships has Black Omega Security lost recently?"
+- "Show me recent Rifter kills"
+
 ### Chat Implementation Details
 
 The Livekit agent uses the standard Livekit Agents 1.0 text handling mechanism:
@@ -135,6 +160,15 @@ If you encounter ESI API errors:
 2. Verify that the search functionality is using the `/universe/ids/` endpoint instead of the deprecated `/search/` endpoint
 3. Make sure you have proper error handling in place
 
+### zKillboard API Errors
+
+If you encounter zKillboard API errors:
+
+1. Check that the zKillboard API URL is correctly formatted
+2. Verify that you're using the correct parameters for the API
+3. Make sure you have proper error handling in place
+4. Be aware that zKillboard has rate limits that may affect your requests
+
 ## Dependencies
 
 This project uses:
@@ -142,6 +176,7 @@ This project uses:
 - Google's Generative AI Python SDK for Gemini integration
 - Livekit Agents 1.0 RC for the agent functionality
 - Discord.py for the Discord bot integration
+- aiohttp for making HTTP requests to external APIs
 
 Make sure to install all dependencies from the requirements.txt file.
 

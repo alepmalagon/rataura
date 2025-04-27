@@ -31,6 +31,7 @@ from rataura.llm.function_tools import (
     search_entities,
     get_system_info,
     get_region_info,
+    get_killmail_info,
 )
 
 # Configure logging
@@ -356,6 +357,50 @@ class RatauraAgent(Agent):
             formatted_response += f" {description}"
         
         result["formatted_info"] = formatted_response
+        return result
+    
+    @function_tool
+    async def get_killmail_info_tool(
+        self,
+        character_id: Optional[int] = None,
+        character_name: Optional[str] = None,
+        corporation_id: Optional[int] = None,
+        corporation_name: Optional[str] = None,
+        alliance_id: Optional[int] = None,
+        alliance_name: Optional[str] = None,
+        ship_type_id: Optional[int] = None,
+        ship_type_name: Optional[str] = None,
+        limit: int = 5,
+        losses_only: bool = False,
+        kills_only: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Get information about recent killmails for a character, corporation, alliance, or ship type from zKillboard.
+        
+        Args:
+            character_id: The ID of the character to get killmails for
+            character_name: The name of the character to get killmails for (will be resolved to an ID)
+            corporation_id: The ID of the corporation to get killmails for
+            corporation_name: The name of the corporation to get killmails for (will be resolved to an ID)
+            alliance_id: The ID of the alliance to get killmails for
+            alliance_name: The name of the alliance to get killmails for (will be resolved to an ID)
+            ship_type_id: The ID of the ship type to get killmails for
+            ship_type_name: The name of the ship type to get killmails for (will be resolved to an ID)
+            limit: The maximum number of killmails to return (default: 5)
+            losses_only: Whether to only return losses (default: false)
+            kills_only: Whether to only return kills (default: false)
+        """
+        logger.info(f"Looking up killmail info for Character ID: {character_id}, Character Name: {character_name}, Corporation ID: {corporation_id}, Corporation Name: {corporation_name}, Alliance ID: {alliance_id}, Alliance Name: {alliance_name}, Ship Type ID: {ship_type_id}, Ship Type Name: {ship_type_name}, Limit: {limit}, Losses Only: {losses_only}, Kills Only: {kills_only}")
+        result = await get_killmail_info(character_id, character_name, corporation_id, corporation_name, alliance_id, alliance_name, ship_type_id, ship_type_name, limit, losses_only, kills_only)
+        
+        # If we have a formatted_info field, return it directly for better readability
+        if "formatted_info" in result:
+            return {"info": result["formatted_info"]}
+            
+        # If there's an error, return it
+        if "error" in result:
+            return {"error": result["error"]}
+        
         return result
 
 
