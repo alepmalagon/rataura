@@ -978,13 +978,17 @@ async def get_killmail_info(
     logger.info(f"Fetching killmail data from zKillboard: {api_url}")
     
     try:
-        # Make the request to zKillboard
+        # Make the request to zKillboard with proper headers
         headers = {
-            "User-Agent": settings.eve_user_agent,
+            "User-Agent": "Rataura/1.0.0 (EVE Online Livekit Agent; https://github.com/alepmalagon/rataura)",
             "Accept": "application/json",
+            "Accept-Encoding": "gzip"
         }
         
         async with aiohttp.ClientSession() as session:
+            # Add a small delay to avoid rate limiting
+            await asyncio.sleep(1)
+            
             async with session.get(api_url, headers=headers) as response:
                 if response.status == 200:
                     try:
@@ -1252,6 +1256,14 @@ async def get_killmail_info(
                 else:
                     error_text = await response.text()
                     logger.error(f"zKillboard API error: {response.status} - {error_text}")
+                    
+                    # Provide a more user-friendly error message for 403 errors
+                    if response.status == 403:
+                        return {
+                            "error": "Access to zKillboard API is currently restricted. This could be due to rate limiting or IP restrictions. Please try again later.",
+                            "technical_details": f"zKillboard API error: {response.status} - {error_text}"
+                        }
+                    
                     return {"error": f"zKillboard API error: {response.status} - {error_text}"}
     except Exception as e:
         logger.error(f"Error getting killmail info: {e}", exc_info=True)
