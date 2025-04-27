@@ -7,6 +7,8 @@ import json
 import asyncio
 from typing import Dict, Any, List, Optional, Union, Callable
 import aiohttp
+import re
+import datetime
 from rataura.config import settings
 from rataura.esi.client import get_esi_client
 
@@ -943,232 +945,319 @@ async def get_killmail_info(
             logger.error(f"Ship type '{ship_type_name}' not found")
             return {"error": f"Ship type '{ship_type_name}' not found"}
     
-    # Construct the zKillboard API URL according to their documentation
-    # https://github.com/zKillboard/zKillboard/wiki/API-(Killmails)
-    zkillboard_base_url = "https://zkillboard.com/api"
+    # Instead of using the zKillboard API, we'll scrape the zKillboard website directly
+    # This is more reliable as the API has restrictions and rate limits
     
-    # Build the URL path with modifiers
+    # Construct the zKillboard URL for web scraping
+    zkillboard_base_url = "https://zkillboard.com"
+    
+    # Build the URL path based on the parameters
     url_parts = [zkillboard_base_url]
     
-    # Add kill/loss filter
+    if character_id:
+        url_parts.append(f"character/{character_id}")
+    elif corporation_id:
+        url_parts.append(f"corporation/{corporation_id}")
+    elif alliance_id:
+        url_parts.append(f"alliance/{alliance_id}")
+    
+    if ship_type_id:
+        url_parts.append(f"ship/{ship_type_id}")
+    
     if losses_only:
         url_parts.append("losses")
     elif kills_only:
         url_parts.append("kills")
     
-    # Add entity filters
-    if character_id:
-        url_parts.append(f"characterID/{character_id}")
-    elif corporation_id:
-        url_parts.append(f"corporationID/{corporation_id}")
-    elif alliance_id:
-        url_parts.append(f"allianceID/{alliance_id}")
+    # Join the URL parts
+    zkillboard_url = "/".join(url_parts) + "/"
     
-    # Add ship type filter
-    if ship_type_id:
-        url_parts.append(f"shipTypeID/{ship_type_id}")
-    
-    # Add page limit
-    if limit and limit > 0:
-        # Ensure limit doesn't exceed 200 (zkillboard max)
-        actual_limit = min(limit, 200)
-        url_parts.append(f"page/1")  # Always start with page 1
-    
-    # Ensure URL ends with a forward slash
-    api_url = "/".join(url_parts) + "/"
-    
-    logger.info(f"Fetching killmail data from zKillboard: {api_url}")
+    logger.info(f"Fetching killmail data from zKillboard website: {zkillboard_url}")
     
     try:
-        # Make the request to zKillboard with proper headers as required by their documentation
+        # Make the request to zKillboard with proper headers
         headers = {
             "User-Agent": "Rataura/1.0.0 (EVE Online Livekit Agent; https://github.com/alepmalagon/rataura; maintainer: alepmalagon@github.com)",
-            "Accept": "application/json",
-            "Accept-Encoding": "gzip"
+            "Accept": "text/html,application/xhtml+xml,application/xml",
+            "Accept-Encoding": "gzip, deflate, br"
         }
         
         async with aiohttp.ClientSession() as session:
             # Add a delay to avoid rate limiting
             await asyncio.sleep(2)
             
-            async with session.get(api_url, headers=headers) as response:
+            async with session.get(zkillboard_url, headers=headers) as response:
                 if response.status == 200:
-                    try:
-                        # Try to parse the response as JSON
-                        content_type = response.headers.get('Content-Type', '')
-                        logger.info(f"Response content type: {content_type}")
+                    # Get the HTML content
+                    html_content = await response.text()
+                    logger.info(f"Retrieved HTML content from zKillboard, size: {len(html_content)} bytes")
+                    
+                    # Parse the HTML to extract killmail information
+                    # We'll use a simple approach to extract the killmail data from the HTML
+                    
+                    # Extract killmail IDs from the HTML
+                    killmail_ids = re.findall(r'href="/kill/(\d+)/"', html_content)
+                    unique_killmail_ids = list(dict.fromkeys(killmail_ids))  # Remove duplicates
+                    
+                    # Limit the number of killmails
+                    killmail_ids = unique_killmail_ids[:limit]
+                    
+                    logger.info(f"Found {len(killmail_ids)} unique killmail IDs")
+                    
+                    if not killmail_ids:
+                        logger.warning(f"No killmails found at {zkillboard_url}")
                         
-                        # Get the raw content for debugging
-                        content = await response.read()
-                        logger.info(f"Response size: {len(content)} bytes")
+                        # Create a formatted summary for no results
+                        entity_name = character_name or corporation_name or alliance_name or "Unknown"
+                        ship_name = ship_type_name or "Unknown"
                         
-                        # If it's HTML, we need to handle it differently
-                        if 'text/html' in content_type:
-                            logger.error(f"Received HTML instead of JSON. This might be a rate limit or blocking issue.")
-                            return {
-                                "error": "zKillboard returned HTML instead of JSON. This is likely due to rate limiting or IP restrictions.",
-                                "technical_details": "Try again later or check if your IP is being blocked."
-                            }
+                        if entity_name != "Unknown" and ship_name != "Unknown":
+                            if losses_only:
+                                summary = f"No recent {ship_name} losses found for {entity_name}."
+                            elif kills_only:
+                                summary = f"No recent {ship_name} kills found for {entity_name}."
+                            else:
+                                summary = f"No recent {ship_name} killmails found for {entity_name}."
+                        elif entity_name != "Unknown":
+                            if losses_only:
+                                summary = f"No recent losses found for {entity_name}."
+                            elif kills_only:
+                                summary = f"No recent kills found for {entity_name}."
+                            else:
+                                summary = f"No recent killmails found for {entity_name}."
+                        elif ship_name != "Unknown":
+                            if losses_only:
+                                summary = f"No recent {ship_name} losses found."
+                            elif kills_only:
+                                summary = f"No recent {ship_name} kills found."
+                            else:
+                                summary = f"No recent {ship_name} killmails found."
+                        else:
+                            summary = "No recent killmails found."
                         
-                        # Try to decode the JSON
+                        return {
+                            "killmails": [],
+                            "formatted_info": summary,
+                        }
+                    
+                    # Extract basic information for each killmail from the HTML
+                    processed_killmails = []
+                    
+                    # Extract killmail rows
+                    killmail_rows = re.findall(r'<tr.*?data-killid="(\d+)".*?>(.*?)</tr>', html_content, re.DOTALL)
+                    
+                    for killmail_id, row_content in killmail_rows:
+                        if killmail_id not in killmail_ids:
+                            continue
+                        
                         try:
-                            killmails = await response.json()
-                            logger.info(f"Retrieved {len(killmails)} killmails from zKillboard")
-                        except Exception as e:
-                            logger.error(f"Error parsing zKillboard response: {e}")
-                            # Try to get the content as text for debugging
-                            text_content = content.decode('utf-8', errors='replace')
-                            logger.error(f"Response content: {text_content[:200]}...")  # Log first 200 chars
-                            return {"error": f"Error parsing zKillboard response: {str(e)}"}
-                        
-                        # Process the killmails
-                        processed_killmails = []
-                        for killmail in killmails:
+                            # Extract timestamp
+                            timestamp_match = re.search(r'<td.*?class="hidden-xs".*?data-order="(\d+)".*?>(.*?)</td>', row_content, re.DOTALL)
+                            timestamp = "Unknown time"
+                            if timestamp_match:
+                                # Convert Unix timestamp to readable format
+                                unix_timestamp = int(timestamp_match.group(1))
+                                timestamp = datetime.datetime.fromtimestamp(unix_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                            
+                            # Extract ship type
+                            ship_match = re.search(r'<td.*?class="hidden-xs".*?><a.*?title="([^"]+)".*?><img.*?></a></td>', row_content, re.DOTALL)
+                            ship_name = "Unknown Ship"
+                            if ship_match:
+                                ship_name = ship_match.group(1)
+                            
+                            # Extract victim name
+                            victim_match = re.search(r'<td.*?class="victim".*?><a.*?>(.*?)</a></td>', row_content, re.DOTALL)
+                            victim_name = "Unknown"
+                            if victim_match:
+                                victim_name = victim_match.group(1).strip()
+                            
+                            # Extract final blow
+                            final_blow_match = re.search(r'<td.*?class="finalBlow".*?><a.*?>(.*?)</a></td>', row_content, re.DOTALL)
+                            final_blow_name = "Unknown"
+                            if final_blow_match:
+                                final_blow_name = final_blow_match.group(1).strip()
+                            
+                            # Extract system
+                            system_match = re.search(r'<td.*?><a.*?title="([^"]+)".*?><span.*?>(.*?)</span></a></td>', row_content, re.DOTALL)
+                            system_name = "Unknown System"
+                            if system_match:
+                                system_name = system_match.group(1)
+                            
+                            # Extract ISK value
+                            value_match = re.search(r'<td.*?class="hidden-xs".*?>([\d,.]+)</td>', row_content, re.DOTALL)
+                            value_str = "0"
+                            if value_match:
+                                value_str = value_match.group(1).replace(',', '')
+                            
                             try:
-                                # Get basic killmail info from the zkillboard response
-                                killmail_id = killmail.get("killmail_id")
-                                if not killmail_id:
-                                    # zkillboard API returns different format than expected
-                                    # Try to extract from zkb data
-                                    zkb = killmail.get("zkb", {})
-                                    killmail_id = zkb.get("killID")
+                                total_value = float(value_str)
+                            except ValueError:
+                                total_value = 0
+                            
+                            # Create a processed killmail entry
+                            processed_killmail = {
+                                "killmail_id": killmail_id,
+                                "killmail_time": timestamp,
+                                "victim_name": victim_name,
+                                "victim_ship_name": ship_name,
+                                "final_blow_name": final_blow_name,
+                                "final_blow_ship_name": "Unknown Ship",  # Not easily extractable from the HTML
+                                "solar_system_name": system_name,
+                                "total_value": total_value,
+                                "zkillboard_url": f"https://zkillboard.com/kill/{killmail_id}/",
+                            }
+                            
+                            processed_killmails.append(processed_killmail)
+                            
+                            # Stop if we've reached the limit
+                            if len(processed_killmails) >= limit:
+                                break
                                 
-                                # Get timestamp
-                                killmail_time = killmail.get("killmail_time")
-                                if not killmail_time:
-                                    # Try alternative field
-                                    killmail_time = killmail.get("killTime")
-                                
-                                # Get victim info - structure depends on API response format
-                                victim = killmail.get("victim", {})
-                                victim_id = victim.get("character_id") or victim.get("characterID")
-                                victim_name = "Unknown"
-                                victim_ship_type_id = victim.get("ship_type_id") or victim.get("shipTypeID")
-                                victim_ship_name = "Unknown Ship"
-                                
-                                # Get attacker info
-                                attackers = killmail.get("attackers", [])
-                                final_blow_attacker = next((a for a in attackers if a.get("final_blow") == 1), None)
-                                final_blow_id = None
-                                final_blow_name = "Unknown"
-                                final_blow_ship_type_id = None
-                                final_blow_ship_name = "Unknown Ship"
-                                
-                                if final_blow_attacker:
-                                    final_blow_id = final_blow_attacker.get("character_id") or final_blow_attacker.get("characterID")
-                                    final_blow_ship_type_id = final_blow_attacker.get("ship_type_id") or final_blow_attacker.get("shipTypeID")
-                                
-                                # Get solar system info
-                                solar_system_id = killmail.get("solar_system_id") or killmail.get("solarSystemID")
-                                solar_system_name = "Unknown System"
-                                
-                                # Get zkillboard URL and value
-                                zkb = killmail.get("zkb", {})
-                                total_value = zkb.get("totalValue", 0)
-                                
-                                # Resolve IDs to names using ESI API
-                                tasks = []
-                                
-                                # Resolve victim character name
-                                if victim_id:
-                                    tasks.append(esi_client.get_character(victim_id))
-                                
-                                # Resolve victim ship name
-                                if victim_ship_type_id:
-                                    tasks.append(esi_client.get_type(victim_ship_type_id))
-                                
-                                # Resolve final blow character name
-                                if final_blow_id:
-                                    tasks.append(esi_client.get_character(final_blow_id))
-                                
-                                # Resolve final blow ship name
-                                if final_blow_ship_type_id:
-                                    tasks.append(esi_client.get_type(final_blow_ship_type_id))
-                                
-                                # Resolve solar system name
-                                if solar_system_id:
-                                    tasks.append(esi_client.get_system(solar_system_id))
-                                
-                                # Wait for all tasks to complete
-                                results = await asyncio.gather(*tasks, return_exceptions=True)
-                                
-                                # Process results
-                                result_index = 0
-                                
-                                # Process victim character name
-                                if victim_id:
-                                    if isinstance(results[result_index], dict):
-                                        victim_name = results[result_index].get("name", "Unknown")
-                                    result_index += 1
-                                
-                                # Process victim ship name
-                                if victim_ship_type_id:
-                                    if isinstance(results[result_index], dict):
-                                        victim_ship_name = results[result_index].get("name", "Unknown Ship")
-                                    result_index += 1
-                                
-                                # Process final blow character name
-                                if final_blow_id:
-                                    if isinstance(results[result_index], dict):
-                                        final_blow_name = results[result_index].get("name", "Unknown")
-                                    result_index += 1
-                                
-                                # Process final blow ship name
-                                if final_blow_ship_type_id:
-                                    if isinstance(results[result_index], dict):
-                                        final_blow_ship_name = results[result_index].get("name", "Unknown Ship")
-                                    result_index += 1
-                                
-                                # Process solar system name
-                                if solar_system_id:
-                                    if isinstance(results[result_index], dict):
-                                        solar_system_name = results[result_index].get("name", "Unknown System")
-                                    result_index += 1
-                                
-                                # Create a processed killmail entry
-                                processed_killmail = {
-                                    "killmail_id": killmail_id,
-                                    "killmail_time": killmail_time,
-                                    "victim_id": victim_id,
-                                    "victim_name": victim_name,
-                                    "victim_ship_type_id": victim_ship_type_id,
-                                    "victim_ship_name": victim_ship_name,
-                                    "final_blow_id": final_blow_id,
-                                    "final_blow_name": final_blow_name,
-                                    "final_blow_ship_type_id": final_blow_ship_type_id,
-                                    "final_blow_ship_name": final_blow_ship_name,
-                                    "solar_system_id": solar_system_id,
-                                    "solar_system_name": solar_system_name,
-                                    "total_value": total_value,
-                                    "zkillboard_url": f"https://zkillboard.com/kill/{killmail_id}/",
-                                }
-                                
-                                processed_killmails.append(processed_killmail)
-                            except Exception as e:
-                                logger.error(f"Error processing killmail: {e}", exc_info=True)
-                        
-                        # Create a formatted summary
-                        entity_name = None
-                        entity_type = None
-                        
+                        except Exception as e:
+                            logger.error(f"Error processing killmail row: {e}", exc_info=True)
+                    
+                    # Create a formatted summary
+                    entity_name = character_name or corporation_name or alliance_name
+                    if not entity_name:
                         if character_id:
-                            entity_type = "character"
-                            if character_name:
-                                entity_name = character_name
-                            else:
-                                try:
-                                    character_info = await esi_client.get_character(character_id)
-                                    entity_name = character_info.get("name", f"Character ID {character_id}")
-                                except Exception:
-                                    entity_name = f"Character ID {character_id}"
+                            try:
+                                character_info = await esi_client.get_character(character_id)
+                                entity_name = character_info.get("name", f"Character ID {character_id}")
+                            except Exception:
+                                entity_name = f"Character ID {character_id}"
                         elif corporation_id:
-                            entity_type = "corporation"
-                            if corporation_name:
-                                entity_name = corporation_name
+                            try:
+                                corporation_info = await esi_client.get_corporation(corporation_id)
+                                entity_name = corporation_info.get("name", f"Corporation ID {corporation_id}")
+                            except Exception:
+                                entity_name = f"Corporation ID {corporation_id}"
+                        elif alliance_id:
+                            try:
+                                alliance_info = await esi_client.get_alliance(alliance_id)
+                                entity_name = alliance_info.get("name", f"Alliance ID {alliance_id}")
+                            except Exception:
+                                entity_name = f"Alliance ID {alliance_id}"
+                        else:
+                            entity_name = "Unknown"
+                    
+                    if not ship_type_name and ship_type_id:
+                        try:
+                            ship_info = await esi_client.get_type(ship_type_id)
+                            ship_type_name = ship_info.get("name", f"Ship Type ID {ship_type_id}")
+                        except Exception:
+                            ship_type_name = f"Ship Type ID {ship_type_id}"
+                    
+                    # Create a formatted summary
+                    summary = ""
+                    
+                    if entity_name and ship_type_name:
+                        if losses_only:
+                            summary = f"Recent {ship_type_name} losses for {entity_name}:\n\n"
+                        elif kills_only:
+                            summary = f"Recent {ship_type_name} kills for {entity_name}:\n\n"
+                        else:
+                            summary = f"Recent {ship_type_name} killmails for {entity_name}:\n\n"
+                    elif entity_name:
+                        if losses_only:
+                            summary = f"Recent losses for {entity_name}:\n\n"
+                        elif kills_only:
+                            summary = f"Recent kills for {entity_name}:\n\n"
+                        else:
+                            summary = f"Recent killmails for {entity_name}:\n\n"
+                    elif ship_type_name:
+                        if losses_only:
+                            summary = f"Recent {ship_type_name} losses:\n\n"
+                        elif kills_only:
+                            summary = f"Recent {ship_type_name} kills:\n\n"
+                        else:
+                            summary = f"Recent {ship_type_name} killmails:\n\n"
+                    else:
+                        summary = "Recent killmails:\n\n"
+                    
+                    # Add each killmail to the summary
+                    for i, killmail in enumerate(processed_killmails):
+                        summary += f"{i+1}. "
+                        
+                        # Format the ISK value
+                        total_value = killmail.get("total_value", 0)
+                        if total_value:
+                            if total_value >= 1000000000:  # Billions
+                                formatted_value = f"{total_value / 1000000000:.2f}B ISK"
+                            elif total_value >= 1000000:  # Millions
+                                formatted_value = f"{total_value / 1000000:.2f}M ISK"
+                            elif total_value >= 1000:  # Thousands
+                                formatted_value = f"{total_value / 1000:.2f}K ISK"
                             else:
-                                try:
-                                    corporation_info = await esi_client.get_corporation(corporation_id)
-                                    entity_name = corporation_info.get("name", f"Corporation ID {corporation_id}")
+                                formatted_value = f"{total_value:.2f} ISK"
+                        else:
+                            formatted_value = "Unknown value"
+                        
+                        # Add the killmail details
+                        victim_name = killmail.get("victim_name", "Unknown")
+                        victim_ship_name = killmail.get("victim_ship_name", "Unknown Ship")
+                        final_blow_name = killmail.get("final_blow_name", "Unknown")
+                        solar_system_name = killmail.get("solar_system_name", "Unknown System")
+                        killmail_time = killmail.get("killmail_time", "Unknown time")
+                        
+                        summary += f"{victim_name} lost a {victim_ship_name} ({formatted_value}) in {solar_system_name} on {killmail_time}. "
+                        summary += f"Final blow by {final_blow_name}.\n"
+                        summary += f"   zKillboard: {killmail.get('zkillboard_url', 'Unknown')}\n\n"
+                    
+                    if not processed_killmails:
+                        if entity_name and ship_type_name:
+                            if losses_only:
+                                summary = f"No recent {ship_type_name} losses found for {entity_name}."
+                            elif kills_only:
+                                summary = f"No recent {ship_type_name} kills found for {entity_name}."
+                            else:
+                                summary = f"No recent {ship_type_name} killmails found for {entity_name}."
+                        elif entity_name:
+                            if losses_only:
+                                summary = f"No recent losses found for {entity_name}."
+                            elif kills_only:
+                                summary = f"No recent kills found for {entity_name}."
+                            else:
+                                summary = f"No recent killmails found for {entity_name}."
+                        elif ship_type_name:
+                            if losses_only:
+                                summary = f"No recent {ship_type_name} losses found."
+                            elif kills_only:
+                                summary = f"No recent {ship_type_name} kills found."
+                            else:
+                                summary = f"No recent {ship_type_name} killmails found."
+                        else:
+                            summary = "No recent killmails found."
+                    
+                    return {
+                        "killmails": processed_killmails,
+                        "formatted_info": summary,
+                    }
+                else:
+                    error_text = await response.text()
+                    logger.error(f"zKillboard website error: {response.status} - {error_text[:200]}")
+                    
+                    # Provide a more user-friendly error message for common errors
+                    if response.status == 403:
+                        return {
+                            "error": "Access to zKillboard website is currently restricted. This could be due to rate limiting or IP restrictions.",
+                            "technical_details": f"zKillboard website error: {response.status}",
+                            "troubleshooting": "Try again later or check if your IP is being blocked."
+                        }
+                    elif response.status == 404:
+                        return {
+                            "error": "The requested resource was not found on zKillboard.",
+                            "technical_details": f"zKillboard website error: {response.status}"
+                        }
+                    elif response.status == 429:
+                        return {
+                            "error": "You've been rate limited by zKillboard. Please wait before making more requests.",
+                            "technical_details": f"zKillboard website error: {response.status}"
+                        }
+                    
+                    return {"error": f"zKillboard website error: {response.status}"}
+    except Exception as e:
+        logger.error(f"Error getting killmail info: {e}", exc_info=True)
+        return {"error": f"Error getting killmail info: {str(e)}"}
                                 except Exception:
                                     entity_name = f"Corporation ID {corporation_id}"
                         elif alliance_id:
