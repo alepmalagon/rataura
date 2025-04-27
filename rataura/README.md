@@ -5,11 +5,12 @@ Rataura is a Discord bot and Livekit agent that serves as a conversational agent
 ## Features
 
 - **Discord Integration**: Uses Discord.py for chat communication
-- **Livekit Agent**: Provides a text-based conversational agent using Livekit 1.0 RC
+- **Livekit Agent**: Provides a conversational agent using Livekit 1.0 RC with support for both voice and text modes
 - **EVE Online ESI API Integration**: Connects to EVE Online's ESI API to fetch game data
 - **LLM-Powered Conversations**: Uses Google's Gemini language models to interpret user queries and provide natural responses
 - **Function Calling**: Implements a set of function tools that the LLM can use to fetch specific game data
 - **Integration with zKillboard**: Fetches killmail and ship fitting data from zKillboard
+- **Voice Support**: Uses Gemini multimodal model and silero VAD for voice interactions
 
 ## Installation
 
@@ -37,6 +38,9 @@ GEMINI_MODEL=gemini-pro
 LIVEKIT_API_KEY=your_livekit_api_key
 LIVEKIT_API_SECRET=your_livekit_api_secret
 LIVEKIT_URL=your_livekit_url
+
+# Agent Configuration
+VOICE_ENABLED=true  # Set to false for text-only mode
 ```
 
 ## Running the Livekit Agent
@@ -48,6 +52,16 @@ python -m rataura.livekit_agent.run
 ```
 
 Then connect to the agent using the Livekit Agent Playground.
+
+### Voice and Text Modes
+
+The agent supports two modes of operation:
+
+1. **Voice and Text Mode** (default): The agent can listen to voice input and respond with voice output, as well as handle text messages.
+   - Set `VOICE_ENABLED=true` in your `.env` file
+
+2. **Text-Only Mode**: The agent only processes and responds to text messages.
+   - Set `VOICE_ENABLED=false` in your `.env` file
 
 ## Available Function Tools
 

@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     livekit_api_secret: Optional[str] = Field(None, env="LIVEKIT_API_SECRET")
     livekit_url: Optional[str] = Field(None, env="LIVEKIT_URL")
     
+    # Agent settings
+    voice_enabled: bool = Field(True, env="VOICE_ENABLED")  # Default to voice enabled
+    
     class Config:
         """
         Pydantic configuration class.
