@@ -943,34 +943,39 @@ async def get_killmail_info(
             logger.error(f"Ship type '{ship_type_name}' not found")
             return {"error": f"Ship type '{ship_type_name}' not found"}
     
-    # Construct the zKillboard API URL
-    zkillboard_url = "https://zkillboard.com/api/"
+    # Construct the zKillboard API URL - using proper REST API format
+    zkillboard_url = "https://zkillboard.com/api"
+    
+    # Build the query parameters
+    query_params = {}
     
     # Add entity filters
     if character_id:
-        zkillboard_url += f"characterID/{character_id}/"
+        query_params["characterID"] = str(character_id)
     elif corporation_id:
-        zkillboard_url += f"corporationID/{corporation_id}/"
+        query_params["corporationID"] = str(corporation_id)
     elif alliance_id:
-        zkillboard_url += f"allianceID/{alliance_id}/"
+        query_params["allianceID"] = str(alliance_id)
     
     # Add ship type filter
     if ship_type_id:
-        zkillboard_url += f"shipTypeID/{ship_type_id}/"
+        query_params["shipTypeID"] = str(ship_type_id)
     
     # Add kill/loss filter
     if losses_only:
-        zkillboard_url += "losses/"
+        query_params["losses"] = "true"
     elif kills_only:
-        zkillboard_url += "kills/"
+        query_params["kills"] = "true"
     
-    # Add limit
-    zkillboard_url += f"/limit/{limit}/"
+    # Add limit and no-items parameters
+    query_params["limit"] = str(limit)
+    query_params["no-items"] = "true"
     
-    # Add no-items parameter to reduce response size
-    zkillboard_url += "no-items/"
+    # Construct the query string
+    query_string = "&".join([f"{k}={v}" for k, v in query_params.items()])
+    api_url = f"{zkillboard_url}/?{query_string}"
     
-    logger.info(f"Fetching killmail data from zKillboard: {zkillboard_url}")
+    logger.info(f"Fetching killmail data from zKillboard: {api_url}")
     
     try:
         # Make the request to zKillboard
@@ -980,10 +985,17 @@ async def get_killmail_info(
         }
         
         async with aiohttp.ClientSession() as session:
-            async with session.get(zkillboard_url, headers=headers) as response:
+            async with session.get(api_url, headers=headers) as response:
                 if response.status == 200:
-                    killmails = await response.json()
-                    logger.info(f"Retrieved {len(killmails)} killmails from zKillboard")
+                    try:
+                        killmails = await response.json()
+                        logger.info(f"Retrieved {len(killmails)} killmails from zKillboard")
+                    except Exception as e:
+                        logger.error(f"Error parsing zKillboard response: {e}")
+                        # Try to get the content as text for debugging
+                        content = await response.text()
+                        logger.error(f"Response content: {content[:200]}...")  # Log first 200 chars
+                        return {"error": f"Error parsing zKillboard response: {str(e)}"}
                     
                     # Process the killmails
                     processed_killmails = []
