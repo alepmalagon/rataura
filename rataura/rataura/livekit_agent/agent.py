@@ -18,7 +18,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.agents.llm import function_tool, ChatContext
-from livekit.plugins import google
+from livekit.plugins import google, silero
 
 from rataura.config import settings
 from rataura.esi.client import get_esi_client
@@ -44,14 +44,14 @@ load_dotenv()
 
 class RatauraAgent(Agent):
     """
-    Livekit agent for the Rataura application.
+    Livekit agent for the Rataura application with voice support.
     """
     
     def __init__(self) -> None:
         """
-        Initialize the Rataura agent.
+        Initialize the Rataura agent with voice capabilities.
         """
-        logger.info("Initializing RatauraAgent...")
+        logger.info("Initializing RatauraAgent with voice support...")
         super().__init__(
             instructions=(
                 "You are Rataura, a helpful assistant for EVE Online players. "
@@ -61,8 +61,21 @@ class RatauraAgent(Agent):
                 "You are knowledgeable about EVE Online game mechanics, items, ships, corporations, alliances, and more. "
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
+            # Use Gemini multimodal model for LLM
+            llm=google.beta.realtime.RealtimeModel(),
+            # Use silero for Voice Activity Detection
+            vad=silero.VAD.load(),
         )
-        logger.info("RatauraAgent initialized successfully")
+        logger.info("RatauraAgent initialized successfully with voice support")
+    
+    async def on_enter(self):
+        """
+        Called when the agent enters the room.
+        """
+        logger.info("Agent entered the room, sending introduction")
+        self.session.generate_reply(
+            instructions="Introduce yourself as Rataura, a voice assistant for EVE Online. Keep it brief and friendly."
+        )
     
     async def on_text(self, text: str, ctx: ChatContext) -> None:
         """
@@ -438,27 +451,36 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Failed to connect to room: {e}")
         raise
+    
+    # Wait for a participant to join
     await ctx.wait_for_participant()
-    llm = google.LLM(model="gemini-2.0-flash-001", temperature=0.7)
     
     # Create and start the agent session
     logger.info("Creating and starting agent session...")
-    session = AgentSession(
-        llm=llm
-    )
+    session = AgentSession()
+    
     @session.on("conversation_item_added")
     def conversation_item_added(msg):
         """Logs the end of speech and adds a transcription segment.""" 
         logger.info(f"Entity stopped speaking\n{str(msg)}")
-            
-    # Start the agent session with text input enabled
+    
+    # Start the agent session with voice capabilities
     await session.start(
         agent=RatauraAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(text_enabled=True),
-        room_output_options=RoomOutputOptions(audio_enabled=False, transcription_enabled=True),
+        # Enable audio input but disable video
+        room_input_options=RoomInputOptions(
+            audio_enabled=True,
+            video_enabled=False,
+            text_enabled=True
+        ),
+        # Enable audio output and transcription
+        room_output_options=RoomOutputOptions(
+            audio_enabled=True,
+            transcription_enabled=True
+        ),
     )
-    logger.info("Agent session started successfully")
+    logger.info("Agent session started successfully with voice support")
 
 
 if __name__ == "__main__":
