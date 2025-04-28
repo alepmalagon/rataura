@@ -63,13 +63,17 @@ class RatauraAgent(Agent):
                 "You are knowledgeable about EVE Online game mechanics, items, ships, corporations, alliances, and more. "
                 "When users ask about game information, use the appropriate function to get the most accurate data."
             ),
-            # Use Gemini multimodal model for LLM
-            "llm": google.beta.realtime.RealtimeModel(),
         }
         
-        # Only add VAD if voice is enabled
+        # Use different LLM models based on voice_enabled setting
         if settings.voice_enabled:
+            # For voice mode, use Gemini multimodal RealtimeModel
+            agent_args["llm"] = google.beta.realtime.RealtimeModel()
+            # Add VAD for voice mode
             agent_args["vad"] = silero.VAD.load()
+        else:
+            # For text-only mode, use the standard LLM model
+            agent_args["llm"] = settings.llm_provider()
             
         super().__init__(**agent_args)
         
