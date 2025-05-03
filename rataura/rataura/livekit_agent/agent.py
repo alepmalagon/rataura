@@ -33,6 +33,10 @@ from rataura.llm.function_tools import (
     get_region_info,
     get_killmail_info,
 )
+from rataura.llm.fw_tools import (
+    get_fw_warzone_status,
+    get_fw_system_info,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -423,6 +427,52 @@ class RatauraAgent(Agent):
         """
         logger.info(f"Looking up killmail info for Character ID: {character_id}, Character Name: {character_name}, Corporation ID: {corporation_id}, Corporation Name: {corporation_name}, Alliance ID: {alliance_id}, Alliance Name: {alliance_name}, Ship Type ID: {ship_type_id}, Ship Type Name: {ship_type_name}, Limit: {limit}, Losses Only: {losses_only}, Kills Only: {kills_only}")
         result = await get_killmail_info(character_id, character_name, corporation_id, corporation_name, alliance_id, alliance_name, ship_type_id, ship_type_name, limit, losses_only, kills_only)
+        
+        # If we have a formatted_info field, return it directly for better readability
+        if "formatted_info" in result:
+            return {"info": result["formatted_info"]}
+            
+        # If there's an error, return it
+        if "error" in result:
+            return {"error": result["error"]}
+        
+        return result
+    
+    @function_tool
+    async def get_fw_warzone_status_tool(
+        self,
+    ) -> Dict[str, Any]:
+        """
+        Get information about which side is winning in each faction warfare warzone based on system control.
+        """
+        logger.info("Looking up faction warfare warzone status")
+        result = await get_fw_warzone_status()
+        
+        # If we have a formatted_info field, return it directly for better readability
+        if "formatted_info" in result:
+            return {"info": result["formatted_info"]}
+            
+        # If there's an error, return it
+        if "error" in result:
+            return {"error": result["error"]}
+        
+        return result
+    
+    @function_tool
+    async def get_fw_system_info_tool(
+        self,
+        system_id: Optional[int] = None,
+        system_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get detailed faction warfare information about a specific solar system.
+        
+        Args:
+            system_id: The ID of the solar system
+            system_name: The name of the solar system (will be resolved to an ID)
+        """
+        logger.info(f"Looking up faction warfare system info for ID: {system_id}, Name: {system_name}")
+        result = await get_fw_system_info(system_id, system_name)
         
         # If we have a formatted_info field, return it directly for better readability
         if "formatted_info" in result:
