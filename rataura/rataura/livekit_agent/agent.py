@@ -475,7 +475,7 @@ class RatauraAgent(Agent):
         
         Contest percentage is calculated as (victory_points / victory_points_threshold) * 100 and represents
         the progress of the attacking faction towards capturing the system.
-        
+
         Args:
             system_id: The ID of the solar system
             system_name: The name of the solar system (will be resolved to an ID)
