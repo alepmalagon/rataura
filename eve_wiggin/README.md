@@ -8,9 +8,11 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 
 ## Features (Phase 1)
 
-- **Warzone Status Analysis**: Get an overview of which faction is winning in each warzone based on system control
+- **Amarr/Minmatar Warzone Focus**: Detailed analysis of the Amarr/Minmatar warzone
+- **Warzone Status Analysis**: Get an overview of which faction is winning based on system control
 - **System Details**: Get detailed information about specific faction warfare systems
 - **System Search**: Find systems by name and get their faction warfare details
+- **Live Data**: Connects directly to EVE Online's ESI API for real-time information
 
 ## Installation
 
@@ -19,13 +21,9 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 ```bash
 # Clone the repository
 git clone https://github.com/alepmalagon/rataura.git
-cd rataura
-
-# Install the main rataura package first
-pip install -e .
+cd rataura/eve_wiggin
 
 # Install the eve_wiggin package
-cd eve_wiggin
 pip install -e .
 ```
 
@@ -47,6 +45,7 @@ docker-compose up --build
 ```python
 import asyncio
 from eve_wiggin.api.fw_api import FWApi
+from eve_wiggin.models.faction_warfare import Warzone
 
 async def main():
     # Initialize the API
@@ -54,10 +53,13 @@ async def main():
     
     # Get warzone status
     warzone_status = await fw_api.get_warzone_status()
-    print(warzone_status)
     
-    # Get details for a specific system
-    system_details = await fw_api.search_system("Tama")
+    # Access Amarr/Minmatar warzone data
+    amarr_minmatar = warzone_status["warzones"][Warzone.AMARR_MINMATAR]
+    print(f"Amarr/Minmatar Warzone - Total Systems: {amarr_minmatar['total_systems']}")
+    
+    # Get details for a specific system in the Amarr/Minmatar warzone
+    system_details = await fw_api.search_system("Huola")
     print(system_details)
 
 if __name__ == "__main__":
@@ -83,6 +85,7 @@ eve_wiggin/
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── esi_client.py
+│   │   ├── mock_esi_client.py
 │   │   └── fw_api.py
 │   ├── models/
 │   │   ├── __init__.py
@@ -113,23 +116,16 @@ black eve_wiggin
 isort eve_wiggin
 ```
 
-## Troubleshooting
+## Data Sources
 
-### Import Errors
+EVE Wiggin connects to the EVE Online ESI API to fetch real-time data about faction warfare systems, including:
 
-If you encounter import errors like `ModuleNotFoundError: No module named 'rataura'`, make sure you have installed both packages in the correct order:
+- System ownership and control
+- Victory points and thresholds
+- Contested status
+- Faction statistics
 
-1. First install the main rataura package
-2. Then install the eve_wiggin package
-
-```bash
-# From the root directory
-pip install -e .
-
-# Then from the eve_wiggin directory
-cd eve_wiggin
-pip install -e .
-```
+The application focuses specifically on the Amarr/Minmatar warzone, providing detailed analysis of this conflict zone.
 
 ## License
 
