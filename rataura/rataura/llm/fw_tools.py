@@ -250,15 +250,26 @@ async def get_fw_system_info(system_id: Optional[int] = None, system_name: Optio
             500011: "Angel Cartel"
         }
         
-        # Calculate advantage percentage
-        victory_points = fw_system["victory_points"]
-        victory_points_threshold = fw_system["victory_points_threshold"]
-        advantage_percent = (victory_points / victory_points_threshold) * 100 if victory_points_threshold > 0 else 0
-        
-        # Determine warzone
+        # Get system data
         owner_faction_id = fw_system["owner_faction_id"]
         occupier_faction_id = fw_system["occupier_faction_id"]
+        victory_points = fw_system["victory_points"]
+        victory_points_threshold = fw_system["victory_points_threshold"]
+        contested_status = fw_system["contested"]
         
+        # Determine if the system is being contested
+        is_contested = contested_status != "uncontested"
+        
+        # Calculate contest percentage (related to the attacking faction)
+        # Contest is always related to the attacking faction (occupier if different from owner)
+        contest_percent = 0
+        if victory_points_threshold > 0:
+            contest_percent = (victory_points / victory_points_threshold) * 100
+        
+        # Get advantage percentage directly from the API
+        advantage_percent = fw_system.get("advantage", 0)
+        
+        # Determine warzone
         if owner_faction_id in [500001, 500004]:
             warzone = "Caldari-Gallente"
         elif owner_faction_id in [500002, 500003]:
@@ -270,15 +281,30 @@ async def get_fw_system_info(system_id: Optional[int] = None, system_name: Optio
         system_name = system_info.get("name", f"System ID {system_id}")
         owner_faction_name = faction_names.get(owner_faction_id, f"Faction ID {owner_faction_id}")
         occupier_faction_name = faction_names.get(occupier_faction_id, f"Faction ID {occupier_faction_id}")
-        contested_status = fw_system["contested"]
         
         summary = f"# Faction Warfare System: {system_name}\n\n"
         summary += f"## Warzone: {warzone}\n\n"
         summary += f"- **Owner Faction**: {owner_faction_name}\n"
-        summary += f"- **Occupier Faction**: {occupier_faction_name}\n"
+        
+        # Determine the attacking faction
+        attacking_faction = None
+        if owner_faction_id != occupier_faction_id:
+            attacking_faction = occupier_faction_name
+            summary += f"- **Occupier/Attacking Faction**: {occupier_faction_name}\n"
+        else:
+            summary += f"- **Occupier Faction**: {occupier_faction_name} (same as owner)\n"
+        
         summary += f"- **Contested Status**: {contested_status.capitalize()}\n"
-        summary += f"- **Victory Points**: {victory_points:,} / {victory_points_threshold:,}\n"
-        summary += f"- **Advantage Percentage**: {advantage_percent:.2f}%\n\n"
+        
+        # Add contest information (related to the attacking faction)
+        if is_contested and attacking_faction:
+            summary += f"- **Contest Percentage**: {contest_percent:.2f}% (progress of {attacking_faction} towards capturing this system)\n"
+        elif is_contested:
+            summary += f"- **Contest Percentage**: {contest_percent:.2f}% (progress towards system capture)\n"
+        
+        # Add advantage information (separate from contest)
+        summary += f"- **Advantage Percentage**: {advantage_percent:.2f}% (affects victory point gains)\n"
+        summary += f"- **Victory Points**: {victory_points:,} / {victory_points_threshold:,}\n\n"
         
         # Add system security status
         security_status = system_info.get("security_status", 0)
@@ -315,7 +341,8 @@ async def get_fw_system_info(system_id: Optional[int] = None, system_name: Optio
             "contested": contested_status,
             "victory_points": victory_points,
             "victory_points_threshold": victory_points_threshold,
-            "advantage_percent": advantage_percent,
+            "contest_percent": contest_percent,  # New field for contest percentage
+            "advantage_percent": advantage_percent,  # Using advantage directly from API
             "warzone": warzone,
             "formatted_info": summary,
             "raw_data": {
@@ -326,4 +353,3 @@ async def get_fw_system_info(system_id: Optional[int] = None, system_name: Optio
     except Exception as e:
         logger.error(f"Error getting faction warfare system info: {e}", exc_info=True)
         return {"error": f"Error getting faction warfare system info: {str(e)}"}
-

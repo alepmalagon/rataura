@@ -465,9 +465,16 @@ class RatauraAgent(Agent):
         system_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Get detailed faction warfare information about a specific solar system. Advantage percent and victory points are different mechanics. Advantage influences how many advantage points 
-        each faction gets for capturing complexes. The more advantage percent the more victory points each faction gets. But advantage is not influenced by victory points.
-        If a system is captured by a faction, the contest represent how much the attacking faction has advanced towards taking the system.
+        Get detailed faction warfare information about a specific solar system.
+        
+        This tool provides information about a faction warfare system including:
+        - Which faction owns and occupies the system
+        - Contest status and percentage (progress of attacking faction towards capturing the system)
+        - Advantage percentage (provided directly from the API, affects victory point gains)
+        - Victory points (current and threshold)
+        
+        Contest percentage is calculated as (victory_points / victory_points_threshold) * 100 and represents
+        the progress of the attacking faction towards capturing the system.
         
         Args:
             system_id: The ID of the solar system
