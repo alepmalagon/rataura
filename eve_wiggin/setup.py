@@ -16,6 +16,7 @@ setup(
         "aiohttp>=3.8.0",
         "pydantic>=2.0.0",
         "pydantic-settings>=2.0.0",
+        "rataura",  # Add rataura as a dependency
     ],
     python_requires=">=3.8",
     classifiers=[
@@ -28,4 +29,3 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
 )
-
