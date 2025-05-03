@@ -16,7 +16,12 @@ setup(
         "aiohttp>=3.8.0",
         "pydantic>=2.0.0",
         "pydantic-settings>=2.0.0",
+        "flask>=2.0.0",
+        "flask-cors>=3.0.0",
     ],
+    extras_require={
+        "async": ["flask[async]>=2.0.0"],
+    },
     python_requires=">=3.8",
     classifiers=[
         "Development Status :: 3 - Alpha",
