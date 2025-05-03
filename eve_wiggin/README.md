@@ -49,8 +49,10 @@ The adjacency type of a system is determined by its position relative to enemy t
 git clone https://github.com/alepmalagon/rataura.git
 cd rataura/eve_wiggin
 
-# Install the eve_wiggin package
-pip install -e .
+# Install the eve_wiggin package with Flask async support
+pip install -e ".[async]"
+# Or alternatively:
+pip install -e . "flask[async]>=2.0.0"
 ```
 
 ### Option 2: Docker Setup
@@ -244,4 +246,3 @@ The application focuses specifically on the Amarr/Minmatar warzone, providing de
 ## License
 
 MIT
-

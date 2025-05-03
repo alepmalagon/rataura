@@ -5,9 +5,9 @@ WORKDIR /app
 # Copy the eve_wiggin package
 COPY eve_wiggin /app/eve_wiggin
 
-# Install the eve_wiggin package
+# Install the eve_wiggin package with Flask async support
 WORKDIR /app
-RUN pip install -e ./eve_wiggin
+RUN pip install -e ./eve_wiggin "flask[async]>=2.0.0"
 
 # Expose port for web application
 EXPOSE 5000
@@ -20,4 +20,3 @@ CMD ["python", "-m", "eve_wiggin.web"]
 
 # Alternatively, you can run the CLI version with:
 # CMD ["python", "-m", "eve_wiggin"]
-

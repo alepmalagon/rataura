@@ -13,6 +13,7 @@ services:
       - "5000:5000"
     volumes:
       - ./:/app
-    command: python -m eve_wiggin.web
+    command: >
+      bash -c "pip install -e . flask[async]>=2.0.0 &&
+               python -m eve_wiggin.web"
     restart: unless-stopped
-
