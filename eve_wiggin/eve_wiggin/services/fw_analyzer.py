@@ -4,12 +4,12 @@ Faction Warfare analyzer service.
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Set
 
 from eve_wiggin.api.esi_client import get_esi_client
 from eve_wiggin.models.faction_warfare import (
     FWSystem, FWFactionStats, FWWarzone, FWWarzoneStatus,
-    FactionID, Warzone, SystemStatus
+    FactionID, Warzone, SystemStatus, SystemAdjacency
 )
 
 # Configure logging
@@ -90,10 +90,54 @@ class FWAnalyzer:
                 
                 systems.append(system)
             
+            # Determine system adjacency
+            systems = await self.determine_system_adjacency(systems)
+            
             return systems
         except Exception as e:
             logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
             raise
+    
+    async def determine_system_adjacency(self, systems: List[FWSystem]) -> List[FWSystem]:
+        """
+        Determine the adjacency type for each faction warfare system.
+        
+        Args:
+            systems (List[FWSystem]): The list of faction warfare systems.
+        
+        Returns:
+            List[FWSystem]: The updated list of faction warfare systems with adjacency information.
+        """
+        # Group systems by warzone and faction
+        amarr_systems = []
+        minmatar_systems = []
+        caldari_systems = []
+        gallente_systems = []
+        
+        for system in systems:
+            if system.owner_faction_id == FactionID.AMARR_EMPIRE:
+                amarr_systems.append(system)
+            elif system.owner_faction_id == FactionID.MINMATAR_REPUBLIC:
+                minmatar_systems.append(system)
+            elif system.owner_faction_id == FactionID.CALDARI_STATE:
+                caldari_systems.append(system)
+            elif system.owner_faction_id == FactionID.GALLENTE_FEDERATION:
+                gallente_systems.append(system)
+        
+        # Determine frontline systems (systems that border enemy territory)
+        # For simplicity, we'll mark systems as frontline if they're contested
+        # In a real implementation, we would use the stargate connections to determine this
+        for system in systems:
+            if system.contested != SystemStatus.UNCONTESTED:
+                system.adjacency = SystemAdjacency.FRONTLINE
+            elif system.victory_points > 0:
+                # Systems with active victory points but not contested are likely command operations
+                system.adjacency = SystemAdjacency.COMMAND_OPERATIONS
+            else:
+                # Other systems are rearguard
+                system.adjacency = SystemAdjacency.REARGUARD
+        
+        return systems
     
     async def get_fw_faction_stats(self) -> Dict[int, FWFactionStats]:
         """
@@ -262,4 +306,3 @@ class FWAnalyzer:
         except Exception as e:
             logger.error(f"Error getting system details: {e}", exc_info=True)
             raise
-

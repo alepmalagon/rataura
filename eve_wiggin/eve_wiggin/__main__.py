@@ -42,15 +42,19 @@ async def main():
             print(f"Total Systems: {amarr_minmatar_warzone['total_systems']}")
             
             # Display systems controlled by each faction
-            amarr_systems = amarr_minmatar_warzone['systems'].get(str(FactionID.AMARR_EMPIRE), 0)
-            minmatar_systems = amarr_minmatar_warzone['systems'].get(str(FactionID.MINMATAR_REPUBLIC), 0)
+            # Convert faction IDs to strings for dictionary lookup
+            amarr_systems = amarr_minmatar_warzone['systems'].get(FactionID.AMARR_EMPIRE, 0)
+            minmatar_systems = amarr_minmatar_warzone['systems'].get(FactionID.MINMATAR_REPUBLIC, 0)
             
-            print(f"Amarr Empire: {amarr_systems} systems ({amarr_minmatar_warzone['control_percentages'].get(str(FactionID.AMARR_EMPIRE), 0):.1f}%)")
-            print(f"Minmatar Republic: {minmatar_systems} systems ({amarr_minmatar_warzone['control_percentages'].get(str(FactionID.MINMATAR_REPUBLIC), 0):.1f}%)")
+            amarr_percentage = amarr_minmatar_warzone['control_percentages'].get(FactionID.AMARR_EMPIRE, 0)
+            minmatar_percentage = amarr_minmatar_warzone['control_percentages'].get(FactionID.MINMATAR_REPUBLIC, 0)
+            
+            print(f"Amarr Empire: {amarr_systems} systems ({amarr_percentage:.1f}%)")
+            print(f"Minmatar Republic: {minmatar_systems} systems ({minmatar_percentage:.1f}%)")
             
             # Display contested systems
-            amarr_contested = amarr_minmatar_warzone['contested'].get(str(FactionID.AMARR_EMPIRE), 0)
-            minmatar_contested = amarr_minmatar_warzone['contested'].get(str(FactionID.MINMATAR_REPUBLIC), 0)
+            amarr_contested = amarr_minmatar_warzone['contested'].get(FactionID.AMARR_EMPIRE, 0)
+            minmatar_contested = amarr_minmatar_warzone['contested'].get(FactionID.MINMATAR_REPUBLIC, 0)
             
             print(f"Contested by Amarr: {amarr_contested} systems")
             print(f"Contested by Minmatar: {minmatar_contested} systems")
