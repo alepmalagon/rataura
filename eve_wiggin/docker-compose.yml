@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  eve_wiggin:
+    build: .
+    container_name: eve_wiggin
+    environment:
+      - EVE_WIGGIN_LOG_LEVEL=INFO
+      - EVE_WIGGIN_DEBUG=false
+    volumes:
+      - ./:/app
+    command: python -m eve_wiggin
+
