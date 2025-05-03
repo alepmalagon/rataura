@@ -484,14 +484,14 @@ async def entrypoint(ctx: JobContext):
     
     # Configure input options
     input_options = RoomInputOptions(
-        audio_enabled=settings.voice_enabled,  # Only enable audio if voice is enabled
+        audio_enabled=False,  # Only enable audio if voice is enabled
         video_enabled=False,  # Always disable video
         text_enabled=True,    # Always enable text
     )
     
     # Configure output options
     output_options = RoomOutputOptions(
-        audio_enabled=settings.voice_enabled,  # Only enable audio output if voice is enabled
+        audio_enabled=False,  # Only enable audio output if voice is enabled
         transcription_enabled=True,  # Always enable transcription
     )
     
