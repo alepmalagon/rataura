@@ -13,6 +13,29 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 - **System Details**: Get detailed information about specific faction warfare systems
 - **System Search**: Find systems by name and get their faction warfare details
 - **Live Data**: Connects directly to EVE Online's ESI API for real-time information
+- **System Adjacency Analysis**: Identifies frontline, command operations, and rearguard systems
+
+## Understanding Faction Warfare Systems
+
+### System Contestation
+
+In EVE Online's faction warfare, all systems can be contested regardless of their adjacency type. The ESI API provides a `contested` status for each system, which indicates whether a system is being actively fought over.
+
+### Victory Points
+
+Victory points represent progress toward capturing a system. All systems can accumulate victory points, including rearguards. When a system reaches its victory point threshold, it becomes vulnerable to capture.
+
+### System Adjacency Types
+
+Systems in faction warfare have three adjacency types that determine how quickly they can be contested:
+
+1. **Frontline Systems**: These systems can be contested at the fastest rate. Players can accumulate victory points quickly in these systems.
+
+2. **Command Operations Systems**: These systems have a medium contestation rate. Victory points accumulate at a moderate pace.
+
+3. **Rearguard Systems**: These systems have the slowest contestation rate. Victory points accumulate very slowly in these systems.
+
+The adjacency type of a system is determined by its position relative to enemy territory and can change as the warzone evolves.
 
 ## Installation
 

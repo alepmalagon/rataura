@@ -86,8 +86,41 @@ async def main():
         
         # Pretty print the system details
         print("\n=== SYSTEM DETAILS: HUOLA ===")
-        print(json.dumps(system_details, indent=2))
         
+        # Extract key information for a cleaner display
+        system = system_details["system"]
+        system_info = system_details["system_info"]
+        owner_faction = system_details["owner_faction_name"]
+        occupier_faction = system_details["occupier_faction_name"]
+        
+        print(f"Name: {system_info['name']} ({system_info['region_name']})")
+        print(f"Security: {system_info['security_status']:.2f} ({system_info['security_class']})")
+        print(f"Owner Faction: {owner_faction}")
+        print(f"Occupier Faction: {occupier_faction}")
+        print(f"Contested Status: {system['contested']}")
+        
+        # Display victory points and contest percentage
+        vp = system["victory_points"]
+        vp_threshold = system["victory_points_threshold"]
+        contest_percent = system["contest_percent"]
+        print(f"Victory Points: {vp}/{vp_threshold} ({contest_percent:.1f}%)")
+        
+        # Display adjacency information with explanation
+        adjacency = system["adjacency"]
+        print(f"Adjacency Type: {adjacency}")
+        
+        # Explain what the adjacency type means
+        if adjacency == "frontline":
+            print("  (Frontline systems allow the fastest contestation rate)")
+        elif adjacency == "command_operations":
+            print("  (Command Operations systems have a medium contestation rate)")
+        elif adjacency == "rearguard":
+            print("  (Rearguard systems have the slowest contestation rate)")
+        
+        # Display additional system information
+        print("\nFull System Details:")
+        print(json.dumps(system_details, indent=2))
+    
     except Exception as e:
         logger.error(f"Error in main: {e}", exc_info=True)
     

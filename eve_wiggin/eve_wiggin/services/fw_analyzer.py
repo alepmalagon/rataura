@@ -124,18 +124,32 @@ class FWAnalyzer:
             elif system.owner_faction_id == FactionID.GALLENTE_FEDERATION:
                 gallente_systems.append(system)
         
-        # Determine frontline systems (systems that border enemy territory)
-        # For simplicity, we'll mark systems as frontline if they're contested
-        # In a real implementation, we would use the stargate connections to determine this
+        # In EVE Online, the adjacency type is determined by the ESI API
+        # Frontline systems: Systems where the contest can move fastest
+        # Command Operations: Systems where the contest moves at medium speed
+        # Rearguard: Systems where the contest moves very slowly
+        
+        # For now, we'll use a simplified approach based on the ESI data
+        # In a real implementation, we would use the actual adjacency data from ESI
+        # or calculate it based on stargate connections and system positions
+        
         for system in systems:
-            if system.contested != SystemStatus.UNCONTESTED:
+            # For demonstration purposes, we'll use a heuristic based on victory points
+            # and contested status to estimate the adjacency type
+            
+            # Systems with high contest percentage are likely frontlines
+            if system.contest_percent > 50.0:
                 system.adjacency = SystemAdjacency.FRONTLINE
-            elif system.victory_points > 0:
-                # Systems with active victory points but not contested are likely command operations
+            # Systems with medium contest percentage are likely command operations
+            elif system.contest_percent > 20.0:
                 system.adjacency = SystemAdjacency.COMMAND_OPERATIONS
+            # All other systems are rearguards
             else:
-                # Other systems are rearguard
                 system.adjacency = SystemAdjacency.REARGUARD
+            
+            # Note: In a production implementation, we would use the actual
+            # adjacency data from the ESI API or calculate it based on the
+            # system's position relative to enemy territory
         
         return systems
     
