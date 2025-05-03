@@ -5,6 +5,47 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Dark mode styles */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #121212;
+    --bs-body-color: #e0e0e0;
+    --bs-card-bg: #1e1e1e;
+    --bs-card-border-color: #333;
+    --bs-border-color: #444;
+    --bs-primary-rgb: 0, 123, 255;
+    --bs-secondary-rgb: 108, 117, 125;
+}
+
+[data-bs-theme="dark"] body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: var(--bs-card-bg);
+    border-color: var(--bs-card-border-color);
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .table {
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .table th {
+    background-color: #212529;
+}
+
+/* Original styles */
 .navbar-brand {
     font-weight: bold;
     font-size: 1.5rem;
@@ -60,6 +101,15 @@ footer {
     text-decoration: underline;
 }
 
+/* Theme toggle button transition */
+#theme-toggle i {
+    transition: transform 0.3s ease;
+}
+
+#theme-toggle:hover i {
+    transform: rotate(30deg);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .card-title {
@@ -70,4 +120,3 @@ footer {
         font-size: 0.9rem;
     }
 }
-

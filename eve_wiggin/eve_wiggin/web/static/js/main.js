@@ -1,6 +1,14 @@
 // Main JavaScript for EVE Wiggin web frontend
 
 $(document).ready(function() {
+    // Initialize theme based on user preference
+    initializeTheme();
+    
+    // Handle theme toggle button click
+    $('#theme-toggle').click(function() {
+        toggleTheme();
+    });
+    
     // Show system search after first analysis
     let hasAnalyzed = false;
     
@@ -113,5 +121,42 @@ $(document).ready(function() {
             $('#search-btn').click();
         });
     }
+    
+    // Function to initialize theme based on user preference
+    function initializeTheme() {
+        const savedTheme = localStorage.getItem('eve-wiggin-theme');
+        
+        if (savedTheme === 'dark') {
+            setDarkMode();
+        } else {
+            setLightMode();
+        }
+    }
+    
+    // Function to toggle between light and dark themes
+    function toggleTheme() {
+        const currentTheme = $('html').attr('data-bs-theme');
+        
+        if (currentTheme === 'dark') {
+            setLightMode();
+            localStorage.setItem('eve-wiggin-theme', 'light');
+        } else {
+            setDarkMode();
+            localStorage.setItem('eve-wiggin-theme', 'dark');
+        }
+    }
+    
+    // Function to set dark mode
+    function setDarkMode() {
+        $('html').attr('data-bs-theme', 'dark');
+        $('#theme-toggle').html('<i class="fas fa-sun"></i> Light Mode');
+        $('#theme-toggle').removeClass('btn-outline-light').addClass('btn-outline-warning');
+    }
+    
+    // Function to set light mode
+    function setLightMode() {
+        $('html').attr('data-bs-theme', 'light');
+        $('#theme-toggle').html('<i class="fas fa-moon"></i> Dark Mode');
+        $('#theme-toggle').removeClass('btn-outline-warning').addClass('btn-outline-light');
+    }
 });
-
