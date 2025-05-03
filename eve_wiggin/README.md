@@ -6,25 +6,50 @@ Strategic Analysis Tool for EVE Online Faction Warfare
 
 EVE Wiggin is a tool designed to analyze the status of faction warfare systems in the EVE Online universe. It provides insights into system control, victory points, and strategic importance to help players make informed decisions about their faction warfare activities.
 
-## Features (Phase 1)
-
-- **Warzone Status Analysis**: Get an overview of which faction is winning in each warzone based on system control
-- **System Details**: Get detailed information about specific faction warfare systems
-- **System Search**: Find systems by name and get their faction warfare details
-
 ## Installation
 
+### Local Development
+
+1. Clone the repository:
 ```bash
-# Clone the repository
 git clone https://github.com/alepmalagon/rataura.git
-cd rataura/eve_wiggin
+cd rataura
+```
 
-# Install dependencies
-pip install -r requirements.txt
+2. Install both packages in development mode:
+```bash
+# Install the main rataura package
+pip install -e .
 
-# Install the package in development mode
+# Install the eve_wiggin package
+cd eve_wiggin
 pip install -e .
 ```
+
+3. Run the application:
+```bash
+python -m eve_wiggin
+```
+
+### Using Docker
+
+1. Clone the repository:
+```bash
+git clone https://github.com/alepmalagon/rataura.git
+cd rataura
+```
+
+2. Build and run using docker-compose:
+```bash
+cd eve_wiggin
+docker-compose up --build
+```
+
+## Features (Phase 1)
+
+- Warzone status analysis: Get an overview of which faction is winning in each warzone
+- System details: Get detailed information about specific faction warfare systems
+- System search: Find systems by name and get their faction warfare details
 
 ## Usage
 
@@ -46,6 +71,40 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+## Project Structure
+
+```
+eve_wiggin/
+├── eve_wiggin/
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── esi_client.py  # ESI API client adapter
+│   │   └── fw_api.py      # Faction Warfare API
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── faction_warfare.py  # Data models for FW
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── fw_analyzer.py  # FW data analysis service
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── logging.py  # Logging utilities
+│   ├── __init__.py
+│   ├── __main__.py  # Entry point
+│   └── config.py  # Configuration
+├── tests/
+│   ├── __init__.py
+│   ├── test_fw_analyzer.py
+│   └── test_fw_api.py
+├── Dockerfile
+├── docker-compose.yml
+├── Makefile
+├── README.md
+├── requirements.txt
+├── setup.py
+└── pytest.ini
 ```
 
 ## Development
@@ -78,4 +137,3 @@ docker run -it eve_wiggin
 ## License
 
 MIT
-
