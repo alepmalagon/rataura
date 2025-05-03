@@ -5,11 +5,13 @@ Main entry point for EVE Wiggin.
 import asyncio
 import logging
 import json
+import argparse
 from typing import Dict, Any
 
 from eve_wiggin.api.fw_api import FWApi
 from eve_wiggin.config import settings
 from eve_wiggin.models.faction_warfare import Warzone, FactionID
+from eve_wiggin.visualization.console import ConsoleVisualizer
 
 # Configure logging
 logging.basicConfig(
@@ -23,103 +25,68 @@ async def main():
     """
     Main entry point for the application.
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="EVE Wiggin - Faction Warfare Analysis Tool")
+    parser.add_argument("--system", help="Display details for a specific system")
+    parser.add_argument("--sort", choices=["name", "security", "contest", "region"], default="name",
+                        help="Sort systems by this field")
+    parser.add_argument("--warzone", choices=["amarr_minmatar", "caldari_gallente"], default="amarr_minmatar",
+                        help="Warzone to analyze")
+    parser.add_argument("--full", action="store_true", help="Display full system details")
+    args = parser.parse_args()
+    
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     
     try:
-        # Initialize the API
+        # Initialize the API and visualizer
         fw_api = FWApi()
+        visualizer = ConsoleVisualizer()
+        
+        # If a specific system was requested
+        if args.system:
+            logger.info(f"Getting system details for {args.system}...")
+            system_details = await fw_api.search_system(args.system)
+            
+            if "error" in system_details:
+                print(f"Error: {system_details['error']}")
+            else:
+                visualizer.display_system_details(system_details)
+            
+            return
         
         # Get warzone status
         logger.info("Getting warzone status...")
         warzone_status = await fw_api.get_warzone_status()
         
-        # Focus on Amarr/Minmatar warzone
-        amarr_minmatar_warzone = warzone_status["warzones"].get(Warzone.AMARR_MINMATAR)
+        # Focus on the selected warzone
+        warzone_key = getattr(Warzone, args.warzone.upper())
+        warzone_data = warzone_status["warzones"].get(warzone_key)
         
-        if amarr_minmatar_warzone:
-            print("\n=== AMARR/MINMATAR WARZONE STATUS ===")
-            print(f"Name: {amarr_minmatar_warzone['name']}")
-            print(f"Total Systems: {amarr_minmatar_warzone['total_systems']}")
-            
-            # Display systems controlled by each faction
-            # Convert faction IDs to strings for dictionary lookup
-            amarr_systems = amarr_minmatar_warzone['systems'].get(FactionID.AMARR_EMPIRE, 0)
-            minmatar_systems = amarr_minmatar_warzone['systems'].get(FactionID.MINMATAR_REPUBLIC, 0)
-            
-            amarr_percentage = amarr_minmatar_warzone['control_percentages'].get(FactionID.AMARR_EMPIRE, 0)
-            minmatar_percentage = amarr_minmatar_warzone['control_percentages'].get(FactionID.MINMATAR_REPUBLIC, 0)
-            
-            print(f"Amarr Empire: {amarr_systems} systems ({amarr_percentage:.1f}%)")
-            print(f"Minmatar Republic: {minmatar_systems} systems ({minmatar_percentage:.1f}%)")
-            
-            # Display contested systems
-            amarr_contested = amarr_minmatar_warzone['contested'].get(FactionID.AMARR_EMPIRE, 0)
-            minmatar_contested = amarr_minmatar_warzone['contested'].get(FactionID.MINMATAR_REPUBLIC, 0)
-            
-            print(f"Contested by Amarr: {amarr_contested} systems")
-            print(f"Contested by Minmatar: {minmatar_contested} systems")
+        if warzone_data:
+            # Display warzone summary
+            visualizer.display_warzone_summary(warzone_data)
             
             # Display faction statistics
-            print("\n=== FACTION STATISTICS ===")
+            faction_stats = {}
+            for faction_id in warzone_data["factions"]:
+                faction_stats[str(faction_id)] = warzone_status["faction_stats"].get(str(faction_id), {})
             
-            amarr_stats = warzone_status["faction_stats"].get(str(FactionID.AMARR_EMPIRE), {})
-            minmatar_stats = warzone_status["faction_stats"].get(str(FactionID.MINMATAR_REPUBLIC), {})
+            visualizer.display_faction_stats(faction_stats)
             
-            if amarr_stats:
-                print(f"Amarr Empire:")
-                print(f"  Pilots: {amarr_stats.get('pilots', 0)}")
-                print(f"  Victory Points (yesterday): {amarr_stats.get('victory_points_yesterday', 0)}")
-                print(f"  Kills (yesterday): {amarr_stats.get('kills_yesterday', 0)}")
+            # Get and display all systems in the warzone
+            logger.info(f"Getting systems for {args.warzone} warzone...")
+            warzone_systems = await fw_api.get_warzone_systems(warzone_key)
             
-            if minmatar_stats:
-                print(f"Minmatar Republic:")
-                print(f"  Pilots: {minmatar_stats.get('pilots', 0)}")
-                print(f"  Victory Points (yesterday): {minmatar_stats.get('victory_points_yesterday', 0)}")
-                print(f"  Kills (yesterday): {minmatar_stats.get('kills_yesterday', 0)}")
+            # Display systems table
+            visualizer.display_systems_table(warzone_systems, sort_by=args.sort)
+            
+            # If full details requested, display details for each system
+            if args.full:
+                for system in warzone_systems:
+                    visualizer.display_system_details(system)
         else:
-            print("Amarr/Minmatar warzone data not available")
+            print(f"Warzone data not available for {args.warzone}")
             print(json.dumps(warzone_status, indent=2))
-        
-        # Example: Get details for a specific system (Huola - an important Amarr/Minmatar warzone system)
-        logger.info("Getting system details for Huola...")
-        system_details = await fw_api.search_system("Huola")
-        
-        # Pretty print the system details
-        print("\n=== SYSTEM DETAILS: HUOLA ===")
-        
-        # Extract key information for a cleaner display
-        system = system_details["system"]
-        system_info = system_details["system_info"]
-        owner_faction = system_details["owner_faction_name"]
-        occupier_faction = system_details["occupier_faction_name"]
-        
-        print(f"Name: {system_info['name']} ({system_info['region_name']})")
-        print(f"Security: {system_info['security_status']:.2f} ({system_info['security_class']})")
-        print(f"Owner Faction: {owner_faction}")
-        print(f"Occupier Faction: {occupier_faction}")
-        print(f"Contested Status: {system['contested']}")
-        
-        # Display victory points and contest percentage
-        vp = system["victory_points"]
-        vp_threshold = system["victory_points_threshold"]
-        contest_percent = system["contest_percent"]
-        print(f"Victory Points: {vp}/{vp_threshold} ({contest_percent:.1f}%)")
-        
-        # Display adjacency information with explanation
-        adjacency = system["adjacency"]
-        print(f"Adjacency Type: {adjacency}")
-        
-        # Explain what the adjacency type means
-        if adjacency == "frontline":
-            print("  (Frontline systems allow the fastest contestation rate)")
-        elif adjacency == "command_operations":
-            print("  (Command Operations systems have a medium contestation rate)")
-        elif adjacency == "rearguard":
-            print("  (Rearguard systems have the slowest contestation rate)")
-        
-        # Display additional system information
-        print("\nFull System Details:")
-        print(json.dumps(system_details, indent=2))
     
     except Exception as e:
         logger.error(f"Error in main: {e}", exc_info=True)

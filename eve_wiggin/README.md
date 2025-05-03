@@ -14,6 +14,8 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 - **System Search**: Find systems by name and get their faction warfare details
 - **Live Data**: Connects directly to EVE Online's ESI API for real-time information
 - **System Adjacency Analysis**: Identifies frontline, command operations, and rearguard systems
+- **Visualization**: Color-coded console visualization of warzone systems and statistics
+- **Sorting and Filtering**: Sort systems by name, security status, contest percentage, or region
 
 ## Understanding Faction Warfare Systems
 
@@ -84,6 +86,10 @@ async def main():
     # Get details for a specific system in the Amarr/Minmatar warzone
     system_details = await fw_api.search_system("Huola")
     print(system_details)
+    
+    # Get all systems in the Amarr/Minmatar warzone
+    warzone_systems = await fw_api.get_warzone_systems(Warzone.AMARR_MINMATAR)
+    print(f"Total systems in warzone: {len(warzone_systems)}")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -92,9 +98,40 @@ if __name__ == "__main__":
 ### Command Line
 
 ```bash
-# Run the module directly
+# Run the module directly (default: show Amarr/Minmatar warzone)
 python -m eve_wiggin
+
+# Show details for a specific system
+python -m eve_wiggin --system Huola
+
+# Sort systems by contest percentage (highest first)
+python -m eve_wiggin --sort contest
+
+# Sort systems by region and name
+python -m eve_wiggin --sort region
+
+# Show Caldari/Gallente warzone instead
+python -m eve_wiggin --warzone caldari_gallente
+
+# Show full details for all systems
+python -m eve_wiggin --full
 ```
+
+## Visualization
+
+EVE Wiggin provides color-coded console visualization for faction warfare data:
+
+- **Faction Colors**: Each faction has a distinct color (Amarr: Yellow, Minmatar: Red, etc.)
+- **System Status**: Contested systems are highlighted
+- **Contest Percentage**: Color-coded based on how close a system is to flipping
+- **Adjacency Types**: Color-coded to show frontline, command operations, and rearguard systems
+- **Security Status**: Color-coded based on security level (high-sec, low-sec, null-sec)
+
+The visualization makes it easy to identify:
+- Systems at risk of changing hands
+- Strategic frontline systems
+- High-value targets for offensive operations
+- Safe docking locations for your faction
 
 ## Development
 
@@ -113,9 +150,12 @@ eve_wiggin/
 │   ├── models/
 │   │   ├── __init__.py
 │   │   └── faction_warfare.py
-│   └── services/
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── fw_analyzer.py
+│   └── visualization/
 │       ├── __init__.py
-│       └── fw_analyzer.py
+│       └── console.py
 ├── tests/
 │   ├── __init__.py
 │   ├── test_fw_analyzer.py
@@ -149,6 +189,15 @@ EVE Wiggin connects to the EVE Online ESI API to fetch real-time data about fact
 - Faction statistics
 
 The application focuses specifically on the Amarr/Minmatar warzone, providing detailed analysis of this conflict zone.
+
+## Future Enhancements (Planned for Phase 2)
+
+- **Interactive Map**: Visual representation of the warzone with system connections
+- **Time Series Analysis**: Track system changes over time to identify trends
+- **Prediction Models**: Forecast when systems are likely to change hands
+- **Alert System**: Notify users when key systems are at risk
+- **Web Interface**: Browser-based dashboard for easier access
+- **API Service**: RESTful API for integration with other tools
 
 ## License
 
