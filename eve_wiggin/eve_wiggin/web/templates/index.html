@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Wiggin - Faction Warfare Analysis</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-space-shuttle me-2"></i>
+                EVE Wiggin
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://github.com/alepmalagon/rataura/tree/main/eve_wiggin" target="_blank">
+                            <i class="fab fa-github me-1"></i> GitHub
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2><i class="fas fa-chart-line me-2"></i>EVE Online Faction Warfare Analysis</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="lead">
+                            This tool provides strategic analysis of faction warfare systems in EVE Online.
+                            Click the button below to analyze the current state of the Amarr/Minmatar warzone.
+                        </p>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="warzone-select">Warzone:</label>
+                                    <select id="warzone-select" class="form-select">
+                                        <option value="amarr_minmatar">Amarr/Minmatar</option>
+                                        <option value="caldari_gallente">Caldari/Gallente</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="sort-select">Sort Systems By:</label>
+                                    <select id="sort-select" class="form-select">
+                                        <option value="name">Name</option>
+                                        <option value="security">Security</option>
+                                        <option value="contest">Contest Percentage</option>
+                                        <option value="region">Region</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button id="analyze-btn" class="btn btn-primary btn-lg">
+                                <i class="fas fa-rocket me-2"></i>Strategic Analysis
+                            </button>
+                        </div>
+                        
+                        <div id="system-search" class="mt-4" style="display: none;">
+                            <div class="input-group">
+                                <input type="text" id="system-input" class="form-control" placeholder="Search for a specific system...">
+                                <button id="search-btn" class="btn btn-secondary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading" class="text-center mt-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing faction warfare data...</p>
+        </div>
+        
+        <div id="results" class="mt-4"></div>
+        
+        <div id="error-container" class="alert alert-danger mt-4" style="display: none;"></div>
+    </div>
+    
+    <footer class="bg-dark text-white mt-5 py-3">
+        <div class="container text-center">
+            <p>EVE Wiggin - Faction Warfare Analysis Tool</p>
+            <p><small>EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide.</small></p>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+

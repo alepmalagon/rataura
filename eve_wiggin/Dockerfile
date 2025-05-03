@@ -9,5 +9,15 @@ COPY eve_wiggin /app/eve_wiggin
 WORKDIR /app
 RUN pip install -e ./eve_wiggin
 
-# Run the application
-CMD ["python", "-m", "eve_wiggin"]
+# Expose port for web application
+EXPOSE 5000
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Run the web application by default
+CMD ["python", "-m", "eve_wiggin.web"]
+
+# Alternatively, you can run the CLI version with:
+# CMD ["python", "-m", "eve_wiggin"]
+

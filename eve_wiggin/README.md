@@ -6,7 +6,7 @@ Strategic Analysis Tool for EVE Online Faction Warfare
 
 EVE Wiggin is a tool designed to analyze the status of faction warfare systems in the EVE Online universe. It provides insights into system control, victory points, and strategic importance to help players make informed decisions about their faction warfare activities.
 
-## Features (Phase 1)
+## Features
 
 - **Amarr/Minmatar Warzone Focus**: Detailed analysis of the Amarr/Minmatar warzone
 - **Warzone Status Analysis**: Get an overview of which faction is winning based on system control
@@ -14,8 +14,9 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 - **System Search**: Find systems by name and get their faction warfare details
 - **Live Data**: Connects directly to EVE Online's ESI API for real-time information
 - **System Adjacency Analysis**: Identifies frontline, command operations, and rearguard systems
-- **Visualization**: Color-coded console visualization of warzone systems and statistics
+- **Visualization**: Color-coded visualization of warzone systems and statistics
 - **Sorting and Filtering**: Sort systems by name, security status, contest percentage, or region
+- **Web Interface**: Browser-based dashboard for easy access and analysis
 
 ## Understanding Faction Warfare Systems
 
@@ -65,6 +66,44 @@ docker-compose up --build
 
 ## Usage
 
+### Web Interface
+
+```bash
+# Run the web application
+python -m eve_wiggin.web
+
+# Access the web interface at http://localhost:5000
+```
+
+The web interface provides a user-friendly dashboard for analyzing faction warfare data:
+
+1. Select the warzone (Amarr/Minmatar or Caldari/Gallente)
+2. Choose how to sort the systems (by name, security, contest percentage, or region)
+3. Click the "Strategic Analysis" button to view the current state of the warzone
+4. Search for specific systems to get detailed information
+
+### Command Line
+
+```bash
+# Run the module directly (default: show Amarr/Minmatar warzone)
+python -m eve_wiggin
+
+# Show details for a specific system
+python -m eve_wiggin --system Huola
+
+# Sort systems by contest percentage (highest first)
+python -m eve_wiggin --sort contest
+
+# Sort systems by region and name
+python -m eve_wiggin --sort region
+
+# Show Caldari/Gallente warzone instead
+python -m eve_wiggin --warzone caldari_gallente
+
+# Show full details for all systems
+python -m eve_wiggin --full
+```
+
 ### Python API
 
 ```python
@@ -95,47 +134,35 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Command Line
+## Docker Deployment
+
+The EVE Wiggin application can be easily deployed using Docker:
 
 ```bash
-# Run the module directly (default: show Amarr/Minmatar warzone)
-python -m eve_wiggin
+# Build the Docker image
+docker build -t eve_wiggin .
 
-# Show details for a specific system
-python -m eve_wiggin --system Huola
+# Run the container (web interface)
+docker run -p 5000:5000 eve_wiggin
 
-# Sort systems by contest percentage (highest first)
-python -m eve_wiggin --sort contest
-
-# Sort systems by region and name
-python -m eve_wiggin --sort region
-
-# Show Caldari/Gallente warzone instead
-python -m eve_wiggin --warzone caldari_gallente
-
-# Show full details for all systems
-python -m eve_wiggin --full
+# Run the container (CLI version)
+docker run eve_wiggin python -m eve_wiggin
 ```
 
-## Visualization
+Or using docker-compose:
 
-EVE Wiggin provides color-coded console visualization for faction warfare data:
+```bash
+# Start the application
+docker-compose up -d
 
-- **Faction Colors**: Each faction has a distinct color (Amarr: Yellow, Minmatar: Red, etc.)
-- **System Status**: Contested systems are highlighted
-- **Contest Percentage**: Color-coded based on how close a system is to flipping
-- **Adjacency Types**: Color-coded to show frontline, command operations, and rearguard systems
-- **Security Status**: Color-coded based on security level (high-sec, low-sec, null-sec)
+# View logs
+docker-compose logs -f
 
-The visualization makes it easy to identify:
-- Systems at risk of changing hands
-- Strategic frontline systems
-- High-value targets for offensive operations
-- Safe docking locations for your faction
+# Stop the application
+docker-compose down
+```
 
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 eve_wiggin/
@@ -153,18 +180,33 @@ eve_wiggin/
 │   ├── services/
 │   │   ├── __init__.py
 │   │   └── fw_analyzer.py
-│   └── visualization/
+│   ├── visualization/
+│   │   ├── __init__.py
+│   │   └── console.py
+│   └── web/
 │       ├── __init__.py
-│       └── console.py
+│       ├── __main__.py
+│       ├── app.py
+│       ├── web_visualizer.py
+│       ├── templates/
+│       │   └── index.html
+│       └── static/
+│           ├── css/
+│           │   └── style.css
+│           └── js/
+│               └── main.js
 ├── tests/
 │   ├── __init__.py
 │   ├── test_fw_analyzer.py
-│   └── test_fw_api.py
+│   ├── test_fw_api.py
+│   └── test_visualization.py
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── setup.py
 ```
+
+## Development
 
 ### Running Tests
 
@@ -196,9 +238,10 @@ The application focuses specifically on the Amarr/Minmatar warzone, providing de
 - **Time Series Analysis**: Track system changes over time to identify trends
 - **Prediction Models**: Forecast when systems are likely to change hands
 - **Alert System**: Notify users when key systems are at risk
-- **Web Interface**: Browser-based dashboard for easier access
-- **API Service**: RESTful API for integration with other tools
+- **Mobile Responsiveness**: Optimize the web interface for mobile devices
+- **User Accounts**: Save preferences and receive personalized alerts
 
 ## License
 
 MIT
+
