@@ -14,19 +14,35 @@ EVE Wiggin is a tool designed to analyze the status of faction warfare systems i
 
 ## Installation
 
+### Option 1: Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/alepmalagon/rataura.git
+cd rataura
+
+# Install the main rataura package first
+pip install -e .
+
+# Install the eve_wiggin package
+cd eve_wiggin
+pip install -e .
+```
+
+### Option 2: Docker Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/alepmalagon/rataura.git
 cd rataura/eve_wiggin
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install the package in development mode
-pip install -e .
+# Build and run with docker-compose
+docker-compose up --build
 ```
 
 ## Usage
+
+### Python API
 
 ```python
 import asyncio
@@ -48,7 +64,41 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+### Command Line
+
+```bash
+# Run the module directly
+python -m eve_wiggin
+```
+
 ## Development
+
+### Project Structure
+
+```
+eve_wiggin/
+├── eve_wiggin/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── esi_client.py
+│   │   └── fw_api.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── faction_warfare.py
+│   └── services/
+│       ├── __init__.py
+│       └── fw_analyzer.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_fw_analyzer.py
+│   └── test_fw_api.py
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── setup.py
+```
 
 ### Running Tests
 
@@ -63,19 +113,24 @@ black eve_wiggin
 isort eve_wiggin
 ```
 
-## Docker
+## Troubleshooting
 
-To build and run the Docker container:
+### Import Errors
+
+If you encounter import errors like `ModuleNotFoundError: No module named 'rataura'`, make sure you have installed both packages in the correct order:
+
+1. First install the main rataura package
+2. Then install the eve_wiggin package
 
 ```bash
-# Build the Docker image
-docker build -t eve_wiggin .
+# From the root directory
+pip install -e .
 
-# Run the container
-docker run -it eve_wiggin
+# Then from the eve_wiggin directory
+cd eve_wiggin
+pip install -e .
 ```
 
 ## License
 
 MIT
-
