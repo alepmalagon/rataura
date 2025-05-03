@@ -3,12 +3,12 @@ version: '3'
 services:
   eve_wiggin:
     build:
-      context: ..
-      dockerfile: ./eve_wiggin/Dockerfile
+      context: .
+      dockerfile: ./Dockerfile
     container_name: eve_wiggin
     environment:
       - EVE_WIGGIN_LOG_LEVEL=INFO
       - EVE_WIGGIN_DEBUG=false
     volumes:
-      - ../:/app
+      - ./:/app
     command: python -m eve_wiggin
