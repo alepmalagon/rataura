@@ -2,16 +2,21 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the parent rataura package first
+COPY rataura /app/rataura
+COPY setup.py /app/
+COPY requirements.txt /app/
+COPY README.md /app/
 
-# Copy the rest of the application
-COPY . .
+# Install the rataura package
+RUN pip install -e .
 
-# Install the package
+# Copy the eve_wiggin package
+COPY eve_wiggin /app/eve_wiggin
+
+# Install the eve_wiggin package
+WORKDIR /app/eve_wiggin
 RUN pip install -e .
 
 # Run the application
 CMD ["python", "-m", "eve_wiggin"]
-
