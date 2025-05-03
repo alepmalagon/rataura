@@ -1,6 +1,5 @@
 # Livekit dependencies
 livekit-agents[google,elevenlabs,openai,silero,deepgram,cartesia,turn-detector,rag,noise-cancellation]~=1.0rc
-livekit-server-sdk==1.0.0rc0
 livekit-api
 
 # Discord integration
