@@ -41,6 +41,9 @@ def setup_logging(level: int = logging.INFO, log_file: Optional[str] = None):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("discord").setLevel(logging.WARNING)
+    # Suppress websockets debug messages
+    logging.getLogger("websockets.client").setLevel(logging.WARNING)
+    logging.getLogger("websockets").setLevel(logging.WARNING)
     
     logger.info("Logging setup complete")
 

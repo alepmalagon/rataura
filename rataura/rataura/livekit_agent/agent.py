@@ -39,6 +39,10 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s %(name)s - %(message)s",
 )
+# Suppress websockets debug messages
+logging.getLogger("websockets.client").setLevel(logging.WARNING)
+logging.getLogger("websockets").setLevel(logging.WARNING)
+
 logger = logging.getLogger("rataura-agent")
 load_dotenv()
 
