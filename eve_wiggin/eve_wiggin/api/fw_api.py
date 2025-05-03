@@ -6,6 +6,7 @@ import logging
 from typing import Dict, List, Optional, Any
 
 from eve_wiggin.services.fw_analyzer import FWAnalyzer
+from eve_wiggin.models.faction_warfare import Warzone
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -78,4 +79,30 @@ class FWApi:
         except Exception as e:
             logger.error(f"Error in search_system API: {e}", exc_info=True)
             return {"error": str(e)}
-
+    
+    async def get_warzone_systems(self, warzone: str = Warzone.AMARR_MINMATAR) -> List[Dict[str, Any]]:
+        """
+        Get all systems in a specific warzone.
+        
+        Args:
+            warzone (str, optional): The warzone to get systems for. Defaults to Warzone.AMARR_MINMATAR.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of systems in the warzone.
+        """
+        try:
+            # Get all faction warfare systems
+            systems = await self.analyzer.get_fw_systems()
+            
+            # Filter systems by warzone
+            warzone_systems = []
+            for system in systems:
+                if system.warzone == warzone:
+                    # Get detailed information for each system
+                    system_details = await self.get_system_details(system.solar_system_id)
+                    warzone_systems.append(system_details)
+            
+            return warzone_systems
+        except Exception as e:
+            logger.error(f"Error in get_warzone_systems API: {e}", exc_info=True)
+            return [{"error": str(e)}]

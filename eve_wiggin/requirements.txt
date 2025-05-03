@@ -2,6 +2,8 @@
 aiohttp>=3.8.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
+tabulate>=0.9.0
+colorama>=0.4.6
 
 # Testing dependencies
 pytest>=7.0.0
@@ -12,4 +14,3 @@ pytest-cov>=4.0.0
 black>=23.0.0
 isort>=5.0.0
 flake8>=6.0.0
-
