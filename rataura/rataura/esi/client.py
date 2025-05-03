@@ -314,6 +314,35 @@ class ESIClient:
             logger.error(f"Error searching for '{search}' in categories {categories}: {e}")
             # Return empty result on error
             return {category: [] for category in categories}
+    
+    # Faction Warfare endpoints
+    
+    async def get_fw_systems(self) -> List[Dict[str, Any]]:
+        """
+        Get faction warfare solar systems.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of faction warfare solar systems.
+        """
+        return await self.get("/fw/systems/")
+    
+    async def get_fw_wars(self) -> List[Dict[str, Any]]:
+        """
+        Get faction warfare wars.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of faction warfare wars.
+        """
+        return await self.get("/fw/wars/")
+    
+    async def get_fw_stats(self) -> List[Dict[str, Any]]:
+        """
+        Get faction warfare statistics.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of faction warfare statistics.
+        """
+        return await self.get("/fw/stats/")
 
 
 # Create a global ESI client instance

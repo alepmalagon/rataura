@@ -11,6 +11,7 @@ import re
 import datetime
 from rataura.config import settings
 from rataura.esi.client import get_esi_client
+from rataura.llm.fw_tools import get_fw_warzone_status, get_fw_system_info, FW_FUNCTION_DEFINITIONS
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -239,6 +240,9 @@ FUNCTION_DEFINITIONS = [
         }
     }
 ]
+
+# Add Faction Warfare function definitions
+FUNCTION_DEFINITIONS.extend(FW_FUNCTION_DEFINITIONS)
 
 # Function implementations
 
