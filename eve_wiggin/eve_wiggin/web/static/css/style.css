@@ -1,0 +1,73 @@
+/* Custom styles for EVE Wiggin */
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.table th {
+    background-color: #343a40;
+    color: white;
+}
+
+.progress {
+    height: 20px;
+    margin-bottom: 10px;
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.35em 0.65em;
+}
+
+footer {
+    margin-top: 50px;
+}
+
+/* System link hover effect */
+.system-link {
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s;
+}
+
+.system-link:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: 1.2rem;
+    }
+    
+    .table {
+        font-size: 0.9rem;
+    }
+}
+

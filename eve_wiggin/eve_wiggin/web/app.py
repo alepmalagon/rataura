@@ -1,0 +1,113 @@
+"""
+Flask application for EVE Wiggin.
+"""
+
+import logging
+import asyncio
+import json
+from typing import Dict, Any, List, Optional
+from flask import Flask, render_template, jsonify, request
+
+from eve_wiggin.api.fw_api import FWApi
+from eve_wiggin.models.faction_warfare import Warzone
+from eve_wiggin.web.web_visualizer import WebVisualizer
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Initialize Flask app
+app = Flask(__name__, template_folder='templates', static_folder='static')
+
+# Initialize API and visualizer
+fw_api = None
+visualizer = WebVisualizer()
+
+
+def init_api():
+    """Initialize the FW API."""
+    global fw_api
+    if fw_api is None:
+        fw_api = FWApi()
+
+
+@app.route('/')
+def index():
+    """Render the index page."""
+    return render_template('index.html')
+
+
+@app.route('/api/analyze', methods=['POST'])
+async def analyze():
+    """
+    Run the EVE Wiggin analysis and return the results.
+    """
+    try:
+        # Initialize API if needed
+        init_api()
+        
+        # Get parameters from request
+        data = request.json or {}
+        warzone_key = data.get('warzone', 'amarr_minmatar')
+        sort_by = data.get('sort', 'name')
+        system_name = data.get('system')
+        
+        # Reset visualizer output
+        visualizer.reset_output()
+        
+        # If a specific system was requested
+        if system_name:
+            logger.info(f"Getting system details for {system_name}...")
+            system_details = await fw_api.search_system(system_name)
+            
+            if "error" in system_details:
+                return jsonify({"error": system_details["error"]})
+            else:
+                visualizer.display_system_details(system_details)
+                return jsonify({"html": visualizer.get_html()})
+        
+        # Get warzone status
+        logger.info("Getting warzone status...")
+        warzone_status = await fw_api.get_warzone_status()
+        
+        # Focus on the selected warzone
+        warzone_enum = getattr(Warzone, warzone_key.upper())
+        warzone_data = warzone_status["warzones"].get(warzone_enum)
+        
+        if warzone_data:
+            # Display warzone summary
+            visualizer.display_warzone_summary(warzone_data)
+            
+            # Display faction statistics
+            faction_stats = {}
+            for faction_id in warzone_data["factions"]:
+                faction_stats[str(faction_id)] = warzone_status["faction_stats"].get(str(faction_id), {})
+            
+            visualizer.display_faction_stats(faction_stats)
+            
+            # Get and display all systems in the warzone
+            logger.info(f"Getting systems for {warzone_key} warzone...")
+            warzone_systems = await fw_api.get_warzone_systems(warzone_enum)
+            
+            # Display systems table
+            visualizer.display_systems_table(warzone_systems, sort_by=sort_by)
+            
+            return jsonify({"html": visualizer.get_html()})
+        else:
+            return jsonify({"error": f"Warzone data not available for {warzone_key}"})
+    
+    except Exception as e:
+        logger.error(f"Error in analyze: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
+def run_app(host='0.0.0.0', port=5000, debug=False):
+    """
+    Run the Flask application.
+    
+    Args:
+        host (str, optional): The host to run on. Defaults to '0.0.0.0'.
+        port (int, optional): The port to run on. Defaults to 5000.
+        debug (bool, optional): Whether to run in debug mode. Defaults to False.
+    """
+    app.run(host=host, port=port, debug=debug)
+

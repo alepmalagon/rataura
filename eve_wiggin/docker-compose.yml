@@ -9,6 +9,10 @@ services:
     environment:
       - EVE_WIGGIN_LOG_LEVEL=INFO
       - EVE_WIGGIN_DEBUG=false
+    ports:
+      - "5000:5000"
     volumes:
       - ./:/app
-    command: python -m eve_wiggin
+    command: python -m eve_wiggin.web
+    restart: unless-stopped
+
