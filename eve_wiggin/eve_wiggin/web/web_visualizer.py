@@ -443,7 +443,7 @@ class WebVisualizer:
                     "adjacency": system_data["adjacency"],
                     "contested": system_data["contested"],
                     "contest_percent": system_data["contest_percent"],
-                    "region": system_info["region"],
+                    "region": system_info["region_name"],
                     "security": system_info["security_status"]
                 },
                 "style": {
