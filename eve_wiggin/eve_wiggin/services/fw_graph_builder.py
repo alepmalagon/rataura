@@ -60,15 +60,19 @@ class FWGraphBuilder:
         """
         try:
             # Step 1: Load the base graph from the filtered pickle file
+            logger.info("Step 1: Loading base graph from filtered pickle file...")
             base_graph = self._load_base_graph()
             
             # Step 2: Get faction warfare systems from ESI API
+            logger.info("Step 2: Getting faction warfare systems from ESI API...")
             fw_systems = await self._get_fw_systems()
             
             # Step 3: Enrich the graph with faction warfare data
+            logger.info("Step 3: Enriching graph with faction warfare data...")
             self._enrich_graph_with_fw_data(base_graph, fw_systems)
             
             # Step 4: Determine system adjacency (frontline, command ops, rearguard)
+            logger.info("Step 4: Determining system adjacency (frontline, command ops, rearguard)...")
             self._determine_system_adjacency(base_graph)
             
             logger.info(f"Built warzone graph with {base_graph.number_of_nodes()} nodes and {base_graph.number_of_edges()} edges")
@@ -239,16 +243,20 @@ class FWGraphBuilder:
         """
         try:
             # Step 1: Mark all systems as rearguard by default
+            logger.info("Step 1: Marking all systems as rearguard by default...")
             for system_id in G.nodes():
                 G.nodes[system_id]["adjacency"] = SystemAdjacency.REARGUARD
             
             # Step 2: Mark permanent frontline systems
+            logger.info("Step 2: Marking permanent frontline systems...")
             self._mark_permanent_frontlines(G)
             
             # Step 3: Find frontline systems
+            logger.info("Step 3: Finding frontline systems based on adjacency to enemy territory...")
             self._find_frontlines(G)
             
             # Step 4: Find command operations systems (one jump from frontlines)
+            logger.info("Step 4: Finding command operations systems (one jump from frontlines)...")
             self._find_command_ops(G)
             
             # Count systems by adjacency
@@ -268,6 +276,8 @@ class FWGraphBuilder:
         Args:
             G (nx.Graph): The NetworkX graph to process.
         """
+        permanent_frontlines_marked = 0
+        
         for system_id in G.nodes():
             system_name = G.nodes[system_id].get("solar_system_name", "")
             occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
@@ -276,12 +286,16 @@ class FWGraphBuilder:
             if (occupier_faction_id == FactionID.AMARR_EMPIRE and 
                 system_name in AMARR_PERMANENT_FRONTLINES):
                 G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                logger.debug(f"Marked {system_name} as permanent Amarr frontline")
+                logger.info(f"Marked {system_name} as permanent Amarr frontline")
+                permanent_frontlines_marked += 1
                 
             if (occupier_faction_id == FactionID.MINMATAR_REPUBLIC and 
                 system_name in MINMATAR_PERMANENT_FRONTLINES):
                 G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                logger.debug(f"Marked {system_name} as permanent Minmatar frontline")
+                logger.info(f"Marked {system_name} as permanent Minmatar frontline")
+                permanent_frontlines_marked += 1
+        
+        logger.info(f"Marked {permanent_frontlines_marked} permanent frontline systems")
     
     def _find_frontlines(self, G: nx.Graph) -> None:
         """
@@ -297,7 +311,10 @@ class FWGraphBuilder:
         minmatar_systems = [system_id for system_id, data in G.nodes(data=True) 
                             if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC]
         
+        logger.info(f"Found {len(amarr_systems)} Amarr systems and {len(minmatar_systems)} Minmatar systems")
+        
         # For each Amarr system, check if it's adjacent to a Minmatar system
+        amarr_frontlines_found = 0
         for amarr_id in amarr_systems:
             # Skip if already marked as frontline
             if G.nodes[amarr_id].get("adjacency") == SystemAdjacency.FRONTLINE:
@@ -311,10 +328,13 @@ class FWGraphBuilder:
                     # This Amarr system is adjacent to a Minmatar system, so it's a frontline
                     G.nodes[amarr_id]["adjacency"] = SystemAdjacency.FRONTLINE
                     system_name = G.nodes[amarr_id].get("solar_system_name", "")
-                    logger.debug(f"Marked {system_name} as Amarr frontline (adjacent to Minmatar)")
+                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
+                    logger.info(f"Marked {system_name} as Amarr frontline (adjacent to Minmatar system {adjacent_name})")
+                    amarr_frontlines_found += 1
                     break
         
         # For each Minmatar system, check if it's adjacent to an Amarr system
+        minmatar_frontlines_found = 0
         for minmatar_id in minmatar_systems:
             # Skip if already marked as frontline
             if G.nodes[minmatar_id].get("adjacency") == SystemAdjacency.FRONTLINE:
@@ -328,8 +348,12 @@ class FWGraphBuilder:
                     # This Minmatar system is adjacent to an Amarr system, so it's a frontline
                     G.nodes[minmatar_id]["adjacency"] = SystemAdjacency.FRONTLINE
                     system_name = G.nodes[minmatar_id].get("solar_system_name", "")
-                    logger.debug(f"Marked {system_name} as Minmatar frontline (adjacent to Amarr)")
+                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
+                    logger.info(f"Marked {system_name} as Minmatar frontline (adjacent to Amarr system {adjacent_name})")
+                    minmatar_frontlines_found += 1
                     break
+        
+        logger.info(f"Found {amarr_frontlines_found} additional Amarr frontlines and {minmatar_frontlines_found} additional Minmatar frontlines")
     
     def _find_command_ops(self, G: nx.Graph) -> None:
         """
@@ -342,9 +366,13 @@ class FWGraphBuilder:
         frontline_systems = [system_id for system_id, data in G.nodes(data=True) 
                              if data.get("adjacency") == SystemAdjacency.FRONTLINE]
         
+        logger.info(f"Found {len(frontline_systems)} frontline systems to check for command ops neighbors")
+        
         # For each frontline system, mark all adjacent systems of the same faction as command ops
+        command_ops_found = 0
         for frontline_id in frontline_systems:
             frontline_faction = G.nodes[frontline_id].get("occupier_faction_id", 0)
+            frontline_name = G.nodes[frontline_id].get("solar_system_name", "")
             
             # Get adjacent systems
             adjacent_systems = list(G.neighbors(frontline_id))
@@ -352,14 +380,16 @@ class FWGraphBuilder:
             for adjacent_id in adjacent_systems:
                 adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
                 adjacent_adjacency = G.nodes[adjacent_id].get("adjacency", "")
+                adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
                 
                 if (adjacent_faction == frontline_faction and 
                     adjacent_adjacency != SystemAdjacency.FRONTLINE):
                     # This system is adjacent to a frontline of the same faction, so it's a command ops
                     G.nodes[adjacent_id]["adjacency"] = SystemAdjacency.COMMAND_OPERATIONS
-                    system_name = G.nodes[adjacent_id].get("solar_system_name", "")
-                    frontline_name = G.nodes[frontline_id].get("solar_system_name", "")
-                    logger.debug(f"Marked {system_name} as command ops (adjacent to frontline {frontline_name})")
+                    logger.info(f"Marked {adjacent_name} as command ops (adjacent to frontline {frontline_name})")
+                    command_ops_found += 1
+        
+        logger.info(f"Found {command_ops_found} command operations systems")
 
 
 def get_fw_graph_builder(access_token: Optional[str] = None) -> FWGraphBuilder:
