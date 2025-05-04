@@ -39,11 +39,11 @@ def dump_all_pickle_data(solar_systems: Dict[int, Dict[str, Any]], warzone_name:
         systems_list.append(system_copy)
     
     # Sort by system name for easier reading
-    systems_list.sort(key=lambda x: x.get('name', ''))
+    systems_list.sort(key=lambda x: x.get('solar_system_name', ''))
     
     # Log the complete data
     for i, system in enumerate(systems_list):
-        logger.info(f"\nSystem #{i+1}: {system.get('name', 'Unknown')} (ID: {system.get('system_id', 'Unknown')})")
+        logger.info(f"\nSystem #{i+1}: {system.get('solar_system_name', 'Unknown')} (ID: {system.get('system_id', 'Unknown')})")
         # Format the system data for better readability
         formatted_data = pformat(system, indent=2, width=100)
         logger.info(formatted_data)
@@ -93,13 +93,13 @@ def examine_pickle(file_path: str, warzone_name: str):
             many_adjacent_system = solar_systems[many_adjacent_id]
             
             logger.info(f"\nSystem with most adjacent systems ({adjacent_counts[many_adjacent_id]}) in {warzone_name}:")
-            logger.info(f"Name: {many_adjacent_system.get('name', 'Unknown')}")
+            logger.info(f"Name: {many_adjacent_system.get('solar_system_name', 'Unknown')}")
             
             # Get adjacent system names
             adjacent_names = []
             for adj_id in many_adjacent_system.get("adjacent", []):
                 if adj_id in solar_systems:
-                    adjacent_names.append(solar_systems[adj_id].get("name", f"ID: {adj_id}"))
+                    adjacent_names.append(solar_systems[adj_id].get("solar_system_name", f"ID: {adj_id}"))
                 else:
                     adjacent_names.append(f"ID: {adj_id} (not in filtered systems)")
             
@@ -118,7 +118,7 @@ def examine_pickle(file_path: str, warzone_name: str):
             # Check regions
             regions = set()
             for system in solar_systems.values():
-                region = system.get("region", "Unknown")
+                region = system.get("region_name", "Unknown")
                 regions.add(region)
             
             logger.info(f"\nRegions in {warzone_name}: {', '.join(sorted(regions))}")

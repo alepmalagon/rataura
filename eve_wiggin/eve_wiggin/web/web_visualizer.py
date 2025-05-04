@@ -498,6 +498,10 @@ class WebVisualizer:
             
             # Create edges for each adjacent system
             for adjacent_id in adjacent_systems:
+                # Convert adjacent_id to string if it's an integer (new format)
+                if isinstance(adjacent_id, int):
+                    adjacent_id = str(adjacent_id)
+                
                 # Skip if the adjacent system is not in the warzone or filtered out
                 if adjacent_id not in system_map:
                     continue
