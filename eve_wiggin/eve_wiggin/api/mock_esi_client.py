@@ -127,8 +127,12 @@ class ESIClient:
         """
         # Check if this is a stargate endpoint
         if endpoint.startswith("/universe/stargates/"):
-            stargate_id = int(endpoint.split("/")[-1])
-            return self.get_mock_stargate(stargate_id)
+            try:
+                stargate_id = int(endpoint.split("/")[-1])
+                return self.get_mock_stargate(stargate_id)
+            except ValueError as e:
+                logger.error(f"Invalid stargate ID in endpoint {endpoint}: {e}")
+                return self.get_mock_stargate(0)  # Return a default stargate
         
         url = f"{ESI_BASE_URL}{endpoint}"
         headers = {
@@ -154,8 +158,12 @@ class ESIClient:
             if endpoint == "/fw/systems/":
                 return self.get_mock_fw_systems()
             elif endpoint.startswith("/universe/systems/"):
-                system_id = int(endpoint.split("/")[-1])
-                return self.get_mock_system(system_id)
+                try:
+                    system_id = int(endpoint.split("/")[-1])
+                    return self.get_mock_system(system_id)
+                except ValueError as e:
+                    logger.error(f"Invalid system ID in endpoint {endpoint}: {e}")
+                    return self.get_mock_system(0)  # Return a default system
             else:
                 raise
     
@@ -400,6 +408,15 @@ class ESIClient:
             Dict[str, Any]: Information about the solar system.
         """
         try:
+            # Ensure system_id is an integer
+            if not isinstance(system_id, int):
+                try:
+                    system_id = int(system_id)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error getting system {system_id}: {e}")
+                    # Return a default system with the provided ID
+                    return self.get_mock_system(0)  # Use a default ID if conversion fails
+            
             return await self.get(f"/universe/systems/{system_id}/")
         except Exception as e:
             logger.error(f"Error getting system {system_id}: {e}")
