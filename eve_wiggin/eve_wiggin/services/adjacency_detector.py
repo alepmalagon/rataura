@@ -46,6 +46,9 @@ class AdjacencyDetector:
     Service for detecting faction warfare system adjacency using BFS.
     """
     
+    # Singleton instance
+    _instance = None
+    
     def __init__(self):
         """
         Initialize the adjacency detector.
@@ -218,4 +221,8 @@ def get_adjacency_detector() -> AdjacencyDetector:
     Returns:
         AdjacencyDetector: An instance of the adjacency detector.
     """
-    return AdjacencyDetector()
+    # Implement singleton pattern to avoid creating multiple instances
+    if AdjacencyDetector._instance is None:
+        AdjacencyDetector._instance = AdjacencyDetector()
+        logger.info("Created new AdjacencyDetector instance")
+    return AdjacencyDetector._instance
