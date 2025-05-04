@@ -217,10 +217,12 @@ class WebVisualizer:
         self.html_output.append('<th>Region</th>')
         self.html_output.append('<th>Owner</th>')
         self.html_output.append('<th>Occupier</th>')
-        self.html_output.append('<th>Contest %</th>')
         self.html_output.append('<th>Adjacency</th>')
         self.html_output.append('<th>Status</th>')
-        self.html_output.append('<th>Actions</th>')
+        self.html_output.append('<th>Contest %</th>')
+        self.html_output.append('<th>VP</th>')
+        self.html_output.append('<th>VP Threshold</th>')
+        self.html_output.append('<th>Advantage</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
@@ -229,35 +231,50 @@ class WebVisualizer:
             system_data = system["system"]
             system_info = system["system_info"]
             
-            # Get faction colors
+            # Get system name and region
+            system_name = system_info["name"]
+            region_name = system_info.get("region_name", "Unknown")
+            
+            # Get owner faction
             owner_faction_id = system_data["owner_faction_id"]
             owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
             owner_name = system["owner_faction_name"]
             
+            # Get occupier faction
             occupier_faction_id = system_data["occupier_faction_id"]
             occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
             occupier_name = system["occupier_faction_name"]
             
-            # Get adjacency color
+            # Get adjacency
             adjacency = system_data["adjacency"]
             adjacency_color = self.adjacency_colors.get(adjacency, "#FFFFFF")
             
-            # Format contest percentage
+            # Get contested status
+            contested = system_data["contested"]
+            status_color = "danger" if contested == SystemStatus.CONTESTED else "success"
+            
+            # Get victory points
+            vp = system_data["victory_points"]
+            vp_threshold = system_data["victory_points_threshold"]
             contest_percent = system_data["contest_percent"]
-            if contest_percent > 75:
-                contest_color = "#FF6347"  # Tomato
-            elif contest_percent > 50:
-                contest_color = "#FFD700"  # Gold
-            elif contest_percent > 25:
-                contest_color = "#32CD32"  # Lime Green
-            else:
-                contest_color = "#FFFFFF"  # White
+            advantage = system_data["advantage"]
             
-            # Add row to table
+            # Create table row
             self.html_output.append('<tr>')
-            self.html_output.append(f'<td><a href="#" class="system-link" data-system="{html.escape(system_info["name"])}">{html.escape(system_info["name"])}</a></td>')
             
-            # Adjacency with badge
+            # System name
+            self.html_output.append(f'<td><a href="/system/{system_data["solar_system_id"]}">{html.escape(system_name)}</a></td>')
+            
+            # Region
+            self.html_output.append(f'<td>{html.escape(region_name)}</td>')
+            
+            # Owner faction
+            self.html_output.append(f'<td><span style="color: {owner_color}">{html.escape(owner_name)}</span></td>')
+            
+            # Occupier faction
+            self.html_output.append(f'<td><span style="color: {occupier_color}">{html.escape(occupier_name)}</span></td>')
+            
+            # Adjacency
             badge_color = "primary"
             if adjacency == SystemAdjacency.FRONTLINE:
                 badge_color = "danger"
@@ -268,16 +285,45 @@ class WebVisualizer:
             
             self.html_output.append(f'<td><span class="badge bg-{badge_color}">{adjacency}</span></td>')
             
-            # Status with badge
-            status_color = "success" if system_data["contested"] == SystemStatus.UNCONTESTED else "danger"
-            self.html_output.append(f'<td><span class="badge bg-{status_color}">{system_data["contested"]}</span></td>')
+            # Contested status
+            self.html_output.append(f'<td><span class="badge bg-{status_color}">{contested}</span></td>')
+            
+            # Contest percentage
+            if contest_percent > 75:
+                contest_color = "#FF6347"  # Tomato
+            elif contest_percent > 50:
+                contest_color = "#FFD700"  # Gold
+            elif contest_percent > 25:
+                contest_color = "#32CD32"  # Lime Green
+            else:
+                contest_color = "#FFFFFF"  # White
+            
+            self.html_output.append(f'<td><span style="color: {contest_color}">{contest_percent:.1f}%</span></td>')
+            
+            # Victory points
+            self.html_output.append(f'<td>{vp}</td>')
+            
+            # Victory points threshold
+            self.html_output.append(f'<td>{vp_threshold}</td>')
+            
+            # Advantage
+            advantage_color = "#FFFFFF"  # Default color
+            if advantage > 0.5:
+                advantage_color = "#FF6347"  # Strong advantage for occupier (Tomato)
+            elif advantage > 0:
+                advantage_color = "#FFD700"  # Slight advantage for occupier (Gold)
+            elif advantage > -0.5:
+                advantage_color = "#32CD32"  # Slight advantage for owner (Lime Green)
+            elif advantage < -0.5:
+                advantage_color = "#1E90FF"  # Strong advantage for owner (Dodger Blue)
+            
+            self.html_output.append(f'<td><span style="color: {advantage_color}">{advantage:.2f}</span></td>')
             
             self.html_output.append('</tr>')
         
         self.html_output.append('</tbody>')
         self.html_output.append('</table>')
         self.html_output.append('</div>')  # End table-responsive
-        
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
     
