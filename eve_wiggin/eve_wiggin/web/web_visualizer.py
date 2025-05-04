@@ -388,13 +388,14 @@ class WebVisualizer:
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
     
-    def generate_graph_data(self, warzone_systems: List[Dict[str, Any]], solar_systems: Dict[str, Any], filter_type: str = "all") -> Dict[str, Any]:
+    def generate_graph_data(self, warzone_systems: List[Dict[str, Any]], solar_systems: List[Dict[str, Any]], filter_type: str = "all") -> Dict[str, Any]:
         """
         Generate graph data for visualization.
         
         Args:
             warzone_systems (List[Dict[str, Any]]): The systems in the warzone.
-            solar_systems (Dict[str, Any]): The solar systems data from the pickle file.
+            solar_systems (List[Dict[str, Any]]): The solar systems data from the pickle file.
+                This can be either a dictionary (old format) or a list of dictionaries (new format).
             filter_type (str, optional): The type of filter to apply. Defaults to "all".
                 Options: "all", "frontline", "contested"
         
@@ -404,11 +405,26 @@ class WebVisualizer:
         nodes = []
         edges = []
         
+        # Check if solar_systems is a dictionary (old format) or a list (new format)
+        is_dict_format = isinstance(solar_systems, dict)
+        
         # Create a mapping of system IDs to warzone system data
         system_map = {}
         for system in warzone_systems:
             system_id = str(system["system"]["solar_system_id"])
             system_map[system_id] = system
+        
+        # Create a mapping of system IDs to solar system data
+        solar_system_map = {}
+        if is_dict_format:
+            # Old format: solar_systems is already a dictionary
+            solar_system_map = solar_systems
+        else:
+            # New format: solar_systems is a list of dictionaries
+            for system in solar_systems:
+                system_id = str(system.get("system_id", ""))
+                if system_id:
+                    solar_system_map[system_id] = system
         
         # Process each system in the warzone
         for system in warzone_systems:
@@ -464,18 +480,21 @@ class WebVisualizer:
             
             nodes.append(node)
         
-        # Create edges for all system connections from the pickle file
-        # This is a direct approach that creates edges for all adjacent systems
-        # without using BFS, which was only linking one system
+        # Create edges for all system connections from the solar systems data
         processed_edges = set()  # Track processed edges to avoid duplicates
         
-        for system_id, system_data in solar_systems.items():
-            # Skip if this system is not in the warzone or filtered out
-            if system_id not in system_map:
-                continue
-                
-            # Get the adjacent systems from the pickle file
-            adjacent_systems = system_data.get("adjacent", [])
+        for system_id, system in system_map.items():
+            # Get the adjacent systems
+            adjacent_systems = []
+            
+            # Get adjacent systems from the solar_system_map
+            if system_id in solar_system_map:
+                if is_dict_format:
+                    # Old format: adjacent is a list of system IDs
+                    adjacent_systems = solar_system_map[system_id].get("adjacent", [])
+                else:
+                    # New format: adjacent is a list of system IDs
+                    adjacent_systems = solar_system_map[system_id].get("adjacent", [])
             
             # Create edges for each adjacent system
             for adjacent_id in adjacent_systems:

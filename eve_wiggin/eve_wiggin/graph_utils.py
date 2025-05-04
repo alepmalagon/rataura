@@ -1,0 +1,182 @@
+"""
+Utilities for loading and converting warzone data to NetworkX graphs.
+"""
+
+import os
+import pickle
+import logging
+import networkx as nx
+from typing import Dict, List, Any, Optional, Tuple
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Define paths to filtered pickle files
+AMA_MIN_FILE = os.path.join(os.path.dirname(__file__), "data", "ama_min.pickle")
+CAL_GAL_FILE = os.path.join(os.path.dirname(__file__), "data", "cal_gal.pickle")
+
+def load_pickle_to_dict(pickle_file: str) -> List[Dict[str, Any]]:
+    """
+    Load a pickle file into a list of dictionaries.
+    
+    Args:
+        pickle_file (str): Path to the pickle file.
+        
+    Returns:
+        List[Dict[str, Any]]: List of dictionaries containing the data.
+    """
+    try:
+        if not os.path.exists(pickle_file):
+            logger.error(f"Pickle file not found: {pickle_file}")
+            return []
+        
+        with open(pickle_file, 'rb') as f:
+            data = pickle.load(f)
+        
+        # Convert the dictionary to a list of dictionaries
+        # Each item will have the system_id as a key in the dictionary
+        result = []
+        for system_id, system_data in data.items():
+            # Add the system_id to the dictionary
+            system_dict = system_data.copy()
+            system_dict['system_id'] = system_id
+            result.append(system_dict)
+        
+        logger.info(f"Loaded {len(result)} systems from {pickle_file}")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error loading pickle file: {e}", exc_info=True)
+        return []
+
+def convert_to_networkx(systems_data: List[Dict[str, Any]]) -> Tuple[nx.Graph, Dict[str, int]]:
+    """
+    Convert a list of system dictionaries to a NetworkX graph.
+    
+    Args:
+        systems_data (List[Dict[str, Any]]): List of system dictionaries.
+        
+    Returns:
+        Tuple[nx.Graph, Dict[str, int]]: NetworkX graph and a mapping of system names to node IDs.
+    """
+    try:
+        # Create a new undirected graph
+        G = nx.Graph()
+        
+        # Create a mapping of system IDs to indices in the systems_data list
+        system_id_to_index = {system['system_id']: i for i, system in enumerate(systems_data)}
+        
+        # Create a mapping of system names to indices
+        system_name_to_index = {}
+        
+        # Add nodes to the graph
+        for i, system in enumerate(systems_data):
+            system_name = system.get('name', f"Unknown-{system['system_id']}")
+            system_name_to_index[system_name] = i
+            
+            # Add node with all system attributes
+            G.add_node(i, **system)
+        
+        # Add edges to the graph
+        for i, system in enumerate(systems_data):
+            # Get adjacent systems
+            adjacent_systems = system.get('adjacent', [])
+            
+            for adj_id in adjacent_systems:
+                # Check if the adjacent system is in our data
+                if adj_id in system_id_to_index:
+                    j = system_id_to_index[adj_id]
+                    # Add edge if it doesn't already exist
+                    if not G.has_edge(i, j):
+                        G.add_edge(i, j)
+        
+        logger.info(f"Created graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+        return G, system_name_to_index
+    
+    except Exception as e:
+        logger.error(f"Error converting to NetworkX graph: {e}", exc_info=True)
+        return nx.Graph(), {}
+
+def get_warzone_graph(warzone: str = 'amarr_minmatar') -> Tuple[nx.Graph, Dict[str, int], List[Dict[str, Any]]]:
+    """
+    Get a NetworkX graph for a specific warzone.
+    
+    Args:
+        warzone (str, optional): The warzone to get the graph for. 
+                                 Options: 'amarr_minmatar' or 'caldari_gallente'.
+                                 Defaults to 'amarr_minmatar'.
+        
+    Returns:
+        Tuple[nx.Graph, Dict[str, int], List[Dict[str, Any]]]: 
+            - NetworkX graph
+            - Mapping of system names to node IDs
+            - Original list of system dictionaries
+    """
+    # Select the appropriate pickle file
+    if warzone.lower() == 'amarr_minmatar':
+        pickle_file = AMA_MIN_FILE
+    elif warzone.lower() == 'caldari_gallente':
+        pickle_file = CAL_GAL_FILE
+    else:
+        logger.error(f"Invalid warzone: {warzone}. Must be 'amarr_minmatar' or 'caldari_gallente'.")
+        return nx.Graph(), {}, []
+    
+    # Load the pickle file
+    systems_data = load_pickle_to_dict(pickle_file)
+    
+    # Convert to NetworkX graph
+    graph, system_name_to_index = convert_to_networkx(systems_data)
+    
+    return graph, system_name_to_index, systems_data
+
+def analyze_graph(G: nx.Graph) -> Dict[str, Any]:
+    """
+    Analyze a NetworkX graph and return various metrics.
+    
+    Args:
+        G (nx.Graph): The graph to analyze.
+        
+    Returns:
+        Dict[str, Any]: Dictionary of graph metrics.
+    """
+    metrics = {}
+    
+    # Basic metrics
+    metrics['num_nodes'] = G.number_of_nodes()
+    metrics['num_edges'] = G.number_of_edges()
+    
+    # Connectivity
+    metrics['is_connected'] = nx.is_connected(G)
+    
+    if metrics['is_connected']:
+        metrics['diameter'] = nx.diameter(G)
+        metrics['average_shortest_path_length'] = nx.average_shortest_path_length(G)
+    else:
+        # Get the largest connected component
+        largest_cc = max(nx.connected_components(G), key=len)
+        largest_cc_graph = G.subgraph(largest_cc).copy()
+        
+        metrics['num_connected_components'] = nx.number_connected_components(G)
+        metrics['largest_component_size'] = len(largest_cc)
+        metrics['largest_component_diameter'] = nx.diameter(largest_cc_graph)
+        metrics['largest_component_avg_path'] = nx.average_shortest_path_length(largest_cc_graph)
+    
+    # Degree statistics
+    degrees = [d for _, d in G.degree()]
+    metrics['min_degree'] = min(degrees)
+    metrics['max_degree'] = max(degrees)
+    metrics['avg_degree'] = sum(degrees) / len(degrees)
+    
+    # Find nodes with highest degree (most connections)
+    high_degree_nodes = sorted(G.degree(), key=lambda x: x[1], reverse=True)[:5]
+    metrics['high_degree_nodes'] = [
+        {
+            'node_id': node_id,
+            'degree': degree,
+            'name': G.nodes[node_id].get('name', f"Unknown-{node_id}")
+        }
+        for node_id, degree in high_degree_nodes
+    ]
+    
+    return metrics
+
