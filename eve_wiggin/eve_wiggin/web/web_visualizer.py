@@ -255,19 +255,26 @@ class WebVisualizer:
             else:
                 contest_color = "#FFFFFF"  # White
             
-            # Format security status
-            security = system_info["security_status"]
-            if security >= 0.5:
-                security_color = "#32CD32"  # Lime Green
-            elif security >= 0.1:
-                security_color = "#FFD700"  # Gold
-            else:
-                security_color = "#FF6347"  # Tomato
-            
             # Add row to table
             self.html_output.append('<tr>')
             self.html_output.append(f'<td><a href="#" class="system-link" data-system="{html.escape(system_info["name"])}">{html.escape(system_info["name"])}</a></td>')
-            self.html_output.append(f'<td><span style="color: {security_color}">{security:.2f}</span></td>')
+            
+            # Security status
+            security = system_info.get("security_status")
+            security_class = ""
+            if security is not None:
+                if security >= 0.5:
+                    security_class = "text-success"  # High security
+                elif security > 0.0:
+                    security_class = "text-warning"  # Low security
+                else:
+                    security_class = "text-danger"  # Null security
+            else:
+                security_class = "text-muted"  # Unknown security
+            
+            security_display = f"{security:.1f}" if security is not None else "N/A"
+            self.html_output.append(f'<td class="{security_class}">{security_display}</td>')
+            
             self.html_output.append(f'<td>{html.escape(system_info["region_name"])}</td>')
             self.html_output.append(f'<td><span style="color: {owner_color}">{html.escape(owner_name)}</span></td>')
             self.html_output.append(f'<td><span style="color: {occupier_color}">{html.escape(occupier_name)}</span></td>')
@@ -316,15 +323,20 @@ class WebVisualizer:
         # Basic system information
         self.html_output.append(f'<h4>{html.escape(system_info["name"])} <small class="text-muted">({html.escape(system_info["region_name"])})</small></h4>')
         
-        security = system_info['security_status']
-        if security >= 0.5:
-            security_color = "#32CD32"  # Lime Green
-        elif security >= 0.1:
-            security_color = "#FFD700"  # Gold
+        security = system_info.get("security_status")
+        security_class = ""
+        if security is not None:
+            if security >= 0.5:
+                security_class = "text-success"  # High security
+            elif security > 0.0:
+                security_class = "text-warning"  # Low security
+            else:
+                security_class = "text-danger"  # Null security
         else:
-            security_color = "#FF6347"  # Tomato
+            security_class = "text-muted"  # Unknown security
         
-        self.html_output.append(f'<p>Security: <span style="color: {security_color}">{security:.2f}</span> ({system_info["security_class"]})</p>')
+        security_display = f"{security:.1f}" if security is not None else "N/A"
+        self.html_output.append(f'<p>Security: <span class="{security_class}">{security_display}</span> ({system_info["security_class"]})</p>')
         
         # Faction information
         owner_faction_id = system_data["owner_faction_id"]
@@ -544,3 +556,4 @@ class WebVisualizer:
             "nodes": nodes,
             "edges": edges
         }
+
