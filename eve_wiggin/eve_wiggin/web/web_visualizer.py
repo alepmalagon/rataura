@@ -201,8 +201,6 @@ class WebVisualizer:
         # Sort systems by the specified field
         if sort_by == "name":
             sorted_systems = sorted(systems, key=lambda s: s["system_info"]["name"])
-        elif sort_by == "security":
-            sorted_systems = sorted(systems, key=lambda s: s["system_info"]["security_status"])
         elif sort_by == "contest":
             sorted_systems = sorted(systems, key=lambda s: s["system"]["contest_percent"], reverse=True)
         elif sort_by == "region":
@@ -216,13 +214,13 @@ class WebVisualizer:
         self.html_output.append('<thead class="thead-dark">')
         self.html_output.append('<tr>')
         self.html_output.append('<th>System</th>')
-        self.html_output.append('<th>Security</th>')
         self.html_output.append('<th>Region</th>')
         self.html_output.append('<th>Owner</th>')
         self.html_output.append('<th>Occupier</th>')
         self.html_output.append('<th>Contest %</th>')
         self.html_output.append('<th>Adjacency</th>')
         self.html_output.append('<th>Status</th>')
+        self.html_output.append('<th>Actions</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
@@ -259,27 +257,6 @@ class WebVisualizer:
             self.html_output.append('<tr>')
             self.html_output.append(f'<td><a href="#" class="system-link" data-system="{html.escape(system_info["name"])}">{html.escape(system_info["name"])}</a></td>')
             
-            # Security status
-            security = system_info.get("security_status")
-            security_class = ""
-            if security is not None:
-                if security >= 0.5:
-                    security_class = "text-success"  # High security
-                elif security > 0.0:
-                    security_class = "text-warning"  # Low security
-                else:
-                    security_class = "text-danger"  # Null security
-            else:
-                security_class = "text-muted"  # Unknown security
-            
-            security_display = f"{security:.1f}" if security is not None else "N/A"
-            self.html_output.append(f'<td class="{security_class}">{security_display}</td>')
-            
-            self.html_output.append(f'<td>{html.escape(system_info["region_name"])}</td>')
-            self.html_output.append(f'<td><span style="color: {owner_color}">{html.escape(owner_name)}</span></td>')
-            self.html_output.append(f'<td><span style="color: {occupier_color}">{html.escape(occupier_name)}</span></td>')
-            self.html_output.append(f'<td><span style="color: {contest_color}">{contest_percent:.1f}%</span></td>')
-            
             # Adjacency with badge
             badge_color = "primary"
             if adjacency == SystemAdjacency.FRONTLINE:
@@ -309,7 +286,7 @@ class WebVisualizer:
         Display detailed information about a faction warfare system.
         
         Args:
-            system (Dict[str, Any]): The system details to display.
+            system (Dict[str, Any]): The system to display.
         """
         system_data = system["system"]
         system_info = system["system_info"]
@@ -322,21 +299,6 @@ class WebVisualizer:
         
         # Basic system information
         self.html_output.append(f'<h4>{html.escape(system_info["name"])} <small class="text-muted">({html.escape(system_info["region_name"])})</small></h4>')
-        
-        security = system_info.get("security_status")
-        security_class = ""
-        if security is not None:
-            if security >= 0.5:
-                security_class = "text-success"  # High security
-            elif security > 0.0:
-                security_class = "text-warning"  # Low security
-            else:
-                security_class = "text-danger"  # Null security
-        else:
-            security_class = "text-muted"  # Unknown security
-        
-        security_display = f"{security:.1f}" if security is not None else "N/A"
-        self.html_output.append(f'<p>Security: <span class="{security_class}">{security_display}</span> ({system_info["security_class"]})</p>')
         
         # Faction information
         owner_faction_id = system_data["owner_faction_id"]
@@ -471,8 +433,7 @@ class WebVisualizer:
                     "adjacency": system_data["adjacency"],
                     "contested": system_data["contested"],
                     "contest_percent": system_data["contest_percent"],
-                    "region": system_info["region_name"],
-                    "security": system_info["security_status"]
+                    "region": system_info["region_name"]
                 },
                 "style": {
                     "background-color": owner_color,
@@ -556,4 +517,3 @@ class WebVisualizer:
             "nodes": nodes,
             "edges": edges
         }
-
