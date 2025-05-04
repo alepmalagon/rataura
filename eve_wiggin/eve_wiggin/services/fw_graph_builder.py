@@ -166,6 +166,16 @@ class FWGraphBuilder:
                 if owner_faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
                     continue
                 
+                # Calculate advantage based on contested status and victory points
+                # Advantage represents which faction has the upper hand in the system
+                advantage = 0.0
+                if raw_system["contested"] == "contested":
+                    # If the system is contested, calculate advantage based on victory points
+                    if victory_points_threshold > 0:
+                        # Positive advantage means the owner is winning
+                        # Negative advantage means the occupier is winning
+                        advantage = ((victory_points / victory_points_threshold) - 0.5) * 2
+                
                 # Create system data
                 fw_systems[system_id] = {
                     "owner_faction_id": owner_faction_id,
@@ -173,7 +183,7 @@ class FWGraphBuilder:
                     "contested": raw_system["contested"],
                     "victory_points": victory_points,
                     "victory_points_threshold": victory_points_threshold,
-                    "advantage": raw_system.get("advantage", 0.0),
+                    "advantage": advantage,
                     "contest_percent": contest_percent
                 }
             
@@ -367,4 +377,3 @@ def get_fw_graph_builder(access_token: Optional[str] = None) -> FWGraphBuilder:
         FWGraphBuilder._instance = FWGraphBuilder(access_token)
         logger.info("Created new FWGraphBuilder instance")
     return FWGraphBuilder._instance
-
