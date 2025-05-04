@@ -251,7 +251,7 @@ class FWGraphBuilder:
             logger.info("Step 2: Marking permanent frontline systems...")
             self._mark_permanent_frontlines(G)
             
-            # Step 3: Find frontline systems
+            # Step 3: Find frontline systems based on adjacency to enemy territory
             logger.info("Step 3: Finding frontline systems based on adjacency to enemy territory...")
             self._find_frontlines(G)
             
@@ -301,95 +301,101 @@ class FWGraphBuilder:
         """
         Find frontline systems using the NetworkX graph.
         
+        Frontline systems are those that are adjacent to enemy-controlled systems.
+        
         Args:
             G (nx.Graph): The NetworkX graph to process.
         """
-        # Get Amarr and Minmatar systems
-        amarr_systems = [system_id for system_id, data in G.nodes(data=True) 
-                         if data.get("occupier_faction_id") == FactionID.AMARR_EMPIRE]
+        # Process all systems to find those adjacent to enemy territory
+        frontlines_found = 0
         
-        minmatar_systems = [system_id for system_id, data in G.nodes(data=True) 
-                            if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC]
-        
-        logger.info(f"Found {len(amarr_systems)} Amarr systems and {len(minmatar_systems)} Minmatar systems")
-        
-        # For each Amarr system, check if it's adjacent to a Minmatar system
-        amarr_frontlines_found = 0
-        for amarr_id in amarr_systems:
+        for system_id in G.nodes():
             # Skip if already marked as frontline
-            if G.nodes[amarr_id].get("adjacency") == SystemAdjacency.FRONTLINE:
+            if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
+                continue
+            
+            system_name = G.nodes[system_id].get("solar_system_name", "")
+            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
+            
+            # Skip systems with no faction
+            if occupier_faction_id == 0:
                 continue
             
             # Get adjacent systems
-            adjacent_systems = list(G.neighbors(amarr_id))
+            adjacent_systems = list(G.neighbors(system_id))
             
+            # Check if any adjacent systems are controlled by the enemy faction
             for adjacent_id in adjacent_systems:
-                if adjacent_id in minmatar_systems:
-                    # This Amarr system is adjacent to a Minmatar system, so it's a frontline
-                    G.nodes[amarr_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                    system_name = G.nodes[amarr_id].get("solar_system_name", "")
-                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
-                    logger.info(f"Marked {system_name} as Amarr frontline (adjacent to Minmatar system {adjacent_name})")
-                    amarr_frontlines_found += 1
+                adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
+                adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
+                
+                # Skip systems with no faction
+                if adjacent_faction == 0:
+                    continue
+                
+                # Check if this is an enemy system
+                is_enemy = False
+                if occupier_faction_id == FactionID.AMARR_EMPIRE and adjacent_faction == FactionID.MINMATAR_REPUBLIC:
+                    is_enemy = True
+                elif occupier_faction_id == FactionID.MINMATAR_REPUBLIC and adjacent_faction == FactionID.AMARR_EMPIRE:
+                    is_enemy = True
+                
+                if is_enemy:
+                    # This system is adjacent to an enemy system, so it's a frontline
+                    G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
+                    logger.info(f"Marked {system_name} as frontline (adjacent to enemy system {adjacent_name})")
+                    frontlines_found += 1
                     break
         
-        # For each Minmatar system, check if it's adjacent to an Amarr system
-        minmatar_frontlines_found = 0
-        for minmatar_id in minmatar_systems:
-            # Skip if already marked as frontline
-            if G.nodes[minmatar_id].get("adjacency") == SystemAdjacency.FRONTLINE:
-                continue
-            
-            # Get adjacent systems
-            adjacent_systems = list(G.neighbors(minmatar_id))
-            
-            for adjacent_id in adjacent_systems:
-                if adjacent_id in amarr_systems:
-                    # This Minmatar system is adjacent to an Amarr system, so it's a frontline
-                    G.nodes[minmatar_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                    system_name = G.nodes[minmatar_id].get("solar_system_name", "")
-                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
-                    logger.info(f"Marked {system_name} as Minmatar frontline (adjacent to Amarr system {adjacent_name})")
-                    minmatar_frontlines_found += 1
-                    break
-        
-        logger.info(f"Found {amarr_frontlines_found} additional Amarr frontlines and {minmatar_frontlines_found} additional Minmatar frontlines")
+        logger.info(f"Found {frontlines_found} additional frontline systems based on adjacency to enemy territory")
     
     def _find_command_ops(self, G: nx.Graph) -> None:
         """
-        Find command operations systems (one jump from frontlines) using the NetworkX graph.
+        Find command operations systems using the NetworkX graph.
+        
+        Command operations systems are those that are adjacent to same-faction frontline systems.
         
         Args:
             G (nx.Graph): The NetworkX graph to process.
         """
-        # Get frontline systems
-        frontline_systems = [system_id for system_id, data in G.nodes(data=True) 
-                             if data.get("adjacency") == SystemAdjacency.FRONTLINE]
-        
-        logger.info(f"Found {len(frontline_systems)} frontline systems to check for command ops neighbors")
-        
-        # For each frontline system, mark all adjacent systems of the same faction as command ops
+        # Process all systems to find those adjacent to frontlines of the same faction
         command_ops_found = 0
-        for frontline_id in frontline_systems:
-            frontline_faction = G.nodes[frontline_id].get("occupier_faction_id", 0)
-            frontline_name = G.nodes[frontline_id].get("solar_system_name", "")
+        
+        for system_id in G.nodes():
+            # Skip if already marked as frontline
+            if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
+                continue
+            
+            system_name = G.nodes[system_id].get("solar_system_name", "")
+            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
+            
+            # Skip systems with no faction
+            if occupier_faction_id == 0:
+                continue
             
             # Get adjacent systems
-            adjacent_systems = list(G.neighbors(frontline_id))
+            adjacent_systems = list(G.neighbors(system_id))
             
+            # Check if any adjacent systems are frontlines of the same faction
             for adjacent_id in adjacent_systems:
                 adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
                 adjacent_adjacency = G.nodes[adjacent_id].get("adjacency", "")
                 adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
                 
-                if (adjacent_faction == frontline_faction and 
-                    adjacent_adjacency != SystemAdjacency.FRONTLINE):
+                # Skip systems with no faction
+                if adjacent_faction == 0:
+                    continue
+                
+                # Check if this is a frontline system of the same faction
+                if (adjacent_faction == occupier_faction_id and 
+                    adjacent_adjacency == SystemAdjacency.FRONTLINE):
                     # This system is adjacent to a frontline of the same faction, so it's a command ops
-                    G.nodes[adjacent_id]["adjacency"] = SystemAdjacency.COMMAND_OPERATIONS
-                    logger.info(f"Marked {adjacent_name} as command ops (adjacent to frontline {frontline_name})")
+                    G.nodes[system_id]["adjacency"] = SystemAdjacency.COMMAND_OPERATIONS
+                    logger.info(f"Marked {system_name} as command ops (adjacent to frontline {adjacent_name})")
                     command_ops_found += 1
+                    break
         
-        logger.info(f"Found {command_ops_found} command operations systems")
+        logger.info(f"Found {command_ops_found} command operations systems based on adjacency to same-faction frontlines")
 
 
 def get_fw_graph_builder(access_token: Optional[str] = None) -> FWGraphBuilder:
