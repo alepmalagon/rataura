@@ -44,6 +44,74 @@ CALDARI_GALLENTE_REGIONS = {
     "Black Rise", "The Citadel", "Placid", "Essence", "Verge Vendor"
 }
 
+# Define real system names for the mock data
+# This mapping will replace the generic "Amarr System n" and "Minmatar System n" names
+SYSTEM_NAME_MAPPING = {
+    # Amarr systems (30003100-30003129)
+    "30003100": "Kurniainen",
+    "30003101": "Saidusairos",
+    "30003102": "Vaajaita",
+    "30003103": "Tannakan",
+    "30003104": "Komaa",
+    "30003105": "Ayeroilen",
+    "30003106": "Imata",
+    "30003107": "Furskeshin",
+    "30003108": "Kurmaru",
+    "30003109": "Satalama",
+    "30003110": "Ashokon",
+    "30003111": "Mara",
+    "30003112": "Lasleinur",
+    "30003113": "Ofstold",
+    "30003114": "Todifrauan",
+    "30003115": "Helgatild",
+    "30003116": "Arnstur",
+    "30003117": "Lasleinur",
+    "30003118": "Stoure",
+    "30003119": "Gehi",
+    "30003120": "Eszur",
+    "30003121": "Hadozeko",
+    "30003122": "Youl",
+    "30003123": "Anka",
+    "30003124": "Iesa",
+    "30003125": "Netsalakka",
+    "30003126": "Sasiekko",
+    "30003127": "Myyhera",
+    "30003128": "Gammel",
+    "30003129": "Uusanen",
+    
+    # Minmatar systems (30002600-30002629)
+    "30002600": "Abudban",
+    "30002601": "Trytedald",
+    "30002602": "Odatrik",
+    "30002603": "Rens",
+    "30002604": "Ameinaka",
+    "30002605": "Alakgur",
+    "30002606": "Dammalin",
+    "30002607": "Bosena",
+    "30002608": "Gulmorogod",
+    "30002609": "Lulm",
+    "30002610": "Kronsur",
+    "30002611": "Dumkirinur",
+    "30002612": "Sist",
+    "30002613": "Obrolber",
+    "30002614": "Austraka",
+    "30002615": "Ivar",
+    "30002616": "Meirakulf",
+    "30002617": "Frarn",
+    "30002618": "Illinfrik",
+    "30002619": "Bosboger",
+    "30002620": "Larkugei",
+    "30002621": "Ebasgerdur",
+    "30002622": "Hek",
+    "30002623": "Hror",
+    "30002624": "Ingunn",
+    "30002625": "Tvink",
+    "30002626": "Lanngisi",
+    "30002627": "Eystur",
+    "30002628": "Nakugard",
+    "30002629": "Hrokkur"
+}
+
 def load_solar_systems() -> Dict[str, Any]:
     """
     Load solar systems data from pickle file.
@@ -145,6 +213,29 @@ def ensure_connected_systems(solar_systems: Dict[str, Any], filtered_systems: Di
     
     return result
 
+def apply_real_system_names(systems: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Apply real system names to the systems data.
+    
+    Args:
+        systems (Dict[str, Any]): The systems data.
+    
+    Returns:
+        Dict[str, Any]: The systems data with real system names.
+    """
+    result = systems.copy()
+    
+    for system_id, system_data in result.items():
+        # Check if this system has a generic name (Amarr System n or Minmatar System n)
+        current_name = system_data.get("name", "")
+        if current_name.startswith("Amarr System ") or current_name.startswith("Minmatar System "):
+            # If we have a real name for this system, use it
+            if system_id in SYSTEM_NAME_MAPPING:
+                system_data["name"] = SYSTEM_NAME_MAPPING[system_id]
+                logger.info(f"Renamed system {system_id} from '{current_name}' to '{SYSTEM_NAME_MAPPING[system_id]}'")
+    
+    return result
+
 def filter_fw_systems():
     """
     Filter the original pickle file to extract only the Faction Warfare systems
@@ -170,11 +261,17 @@ def filter_fw_systems():
         # Ensure all connected systems are included
         ama_min_systems = ensure_connected_systems(solar_systems, ama_min_systems)
         
+        # Apply real system names to replace generic names
+        ama_min_systems = apply_real_system_names(ama_min_systems)
+        
         # Filter systems for Caldari-Gallente warzone
         cal_gal_systems = filter_systems_by_region(solar_systems, CALDARI_GALLENTE_REGIONS)
         
         # Ensure all connected systems are included
         cal_gal_systems = ensure_connected_systems(solar_systems, cal_gal_systems)
+        
+        # Apply real system names to replace generic names
+        cal_gal_systems = apply_real_system_names(cal_gal_systems)
         
         # Save filtered systems to pickle files
         with open(AMA_MIN_OUTPUT_FILE, 'wb') as f:
