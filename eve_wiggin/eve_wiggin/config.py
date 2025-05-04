@@ -2,7 +2,13 @@
 Configuration module for EVE Wiggin.
 """
 
-from pydantic import BaseSettings
+# Updated import for Pydantic v2 compatibility
+try:
+    # For Pydantic v2
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # Fallback for Pydantic v1
+    from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
