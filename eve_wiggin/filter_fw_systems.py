@@ -2,6 +2,8 @@
 """
 Script to filter the original pickle file to extract only the Faction Warfare systems
 for each warzone and save them to separate pickle files.
+
+This version uses a text file with system names to filter the systems.
 """
 
 import pickle
@@ -19,98 +21,8 @@ SOLAR_SYSTEMS_FILE = "eve_wiggin/data/solar_systems.pickle"
 AMA_MIN_OUTPUT_FILE = "eve_wiggin/data/ama_min.pickle"
 CAL_GAL_OUTPUT_FILE = "eve_wiggin/data/cal_gal.pickle"
 
-# Faction IDs
-AMARR_EMPIRE = 500003
-MINMATAR_REPUBLIC = 500002
-CALDARI_STATE = 500001
-GALLENTE_FEDERATION = 500004
-
-# Define permanent frontline systems for Amarr-Minmatar warzone
-AMARR_PERMANENT_FRONTLINES = {
-    "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"
-}
-
-MINMATAR_PERMANENT_FRONTLINES = {
-    "Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"
-}
-
-# Define regions for each warzone
-# These are approximate and may need adjustment
-AMARR_MINMATAR_REGIONS = {
-    "Heimatar", "Metropolis", "Molden Heath", "The Bleak Lands", "Devoid", "Domain"
-}
-
-CALDARI_GALLENTE_REGIONS = {
-    "Black Rise", "The Citadel", "Placid", "Essence", "Verge Vendor"
-}
-
-# Define real system names for the mock data
-# This mapping will replace the generic "Amarr System n" and "Minmatar System n" names
-SYSTEM_NAME_MAPPING = {
-    # Amarr systems (30003100-30003129)
-    "30003100": "Kurniainen",
-    "30003101": "Saidusairos",
-    "30003102": "Vaajaita",
-    "30003103": "Tannakan",
-    "30003104": "Komaa",
-    "30003105": "Ayeroilen",
-    "30003106": "Imata",
-    "30003107": "Furskeshin",
-    "30003108": "Kurmaru",
-    "30003109": "Satalama",
-    "30003110": "Ashokon",
-    "30003111": "Mara",
-    "30003112": "Lasleinur",
-    "30003113": "Ofstold",
-    "30003114": "Todifrauan",
-    "30003115": "Helgatild",
-    "30003116": "Arnstur",
-    "30003117": "Lasleinur",
-    "30003118": "Stoure",
-    "30003119": "Gehi",
-    "30003120": "Eszur",
-    "30003121": "Hadozeko",
-    "30003122": "Youl",
-    "30003123": "Anka",
-    "30003124": "Iesa",
-    "30003125": "Netsalakka",
-    "30003126": "Sasiekko",
-    "30003127": "Myyhera",
-    "30003128": "Gammel",
-    "30003129": "Uusanen",
-    
-    # Minmatar systems (30002600-30002629)
-    "30002600": "Abudban",
-    "30002601": "Trytedald",
-    "30002602": "Odatrik",
-    "30002603": "Rens",
-    "30002604": "Ameinaka",
-    "30002605": "Alakgur",
-    "30002606": "Dammalin",
-    "30002607": "Bosena",
-    "30002608": "Gulmorogod",
-    "30002609": "Lulm",
-    "30002610": "Kronsur",
-    "30002611": "Dumkirinur",
-    "30002612": "Sist",
-    "30002613": "Obrolber",
-    "30002614": "Austraka",
-    "30002615": "Ivar",
-    "30002616": "Meirakulf",
-    "30002617": "Frarn",
-    "30002618": "Illinfrik",
-    "30002619": "Bosboger",
-    "30002620": "Larkugei",
-    "30002621": "Ebasgerdur",
-    "30002622": "Hek",
-    "30002623": "Hror",
-    "30002624": "Ingunn",
-    "30002625": "Tvink",
-    "30002626": "Lanngisi",
-    "30002627": "Eystur",
-    "30002628": "Nakugard",
-    "30002629": "Hrokkur"
-}
+# Path to the text file containing Amarr/Minmatar system names
+AMA_MIN_SYSTEMS_FILE = "eve_wiggin/eve_wiggin/data/ama_min.txt"
 
 def load_solar_systems() -> Dict[str, Any]:
     """
@@ -132,25 +44,29 @@ def load_solar_systems() -> Dict[str, Any]:
         logger.error(f"Error loading solar systems data: {e}", exc_info=True)
         return {}
 
-def filter_systems_by_region(solar_systems: Dict[str, Any], regions: Set[str]) -> Dict[str, Any]:
+def load_system_names_from_file(file_path: str) -> Set[str]:
     """
-    Filter solar systems by region.
+    Load system names from a text file.
     
     Args:
-        solar_systems (Dict[str, Any]): The solar systems data.
-        regions (Set[str]): The set of region names to filter by.
-    
+        file_path (str): Path to the text file containing system names.
+        
     Returns:
-        Dict[str, Any]: The filtered solar systems data.
+        Set[str]: Set of system names.
     """
-    filtered_systems = {}
-    
-    for system_id, system_data in solar_systems.items():
-        region_name = system_data.get("region", "")
-        if region_name in regions:
-            filtered_systems[system_id] = system_data
-    
-    return filtered_systems
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                # Read each line, strip whitespace, and filter out empty lines
+                system_names = {line.strip() for line in f if line.strip()}
+            logger.info(f"Loaded {len(system_names)} system names from {file_path}")
+            return system_names
+        else:
+            logger.error(f"System names file not found: {file_path}")
+            return set()
+    except Exception as e:
+        logger.error(f"Error loading system names: {e}", exc_info=True)
+        return set()
 
 def filter_systems_by_name(solar_systems: Dict[str, Any], system_names: Set[str]) -> Dict[str, Any]:
     """
@@ -213,33 +129,12 @@ def ensure_connected_systems(solar_systems: Dict[str, Any], filtered_systems: Di
     
     return result
 
-def apply_real_system_names(systems: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Apply real system names to the systems data.
-    
-    Args:
-        systems (Dict[str, Any]): The systems data.
-    
-    Returns:
-        Dict[str, Any]: The systems data with real system names.
-    """
-    result = systems.copy()
-    
-    for system_id, system_data in result.items():
-        # Check if this system has a generic name (Amarr System n or Minmatar System n)
-        current_name = system_data.get("name", "")
-        if current_name.startswith("Amarr System ") or current_name.startswith("Minmatar System "):
-            # If we have a real name for this system, use it
-            if system_id in SYSTEM_NAME_MAPPING:
-                system_data["name"] = SYSTEM_NAME_MAPPING[system_id]
-                logger.info(f"Renamed system {system_id} from '{current_name}' to '{SYSTEM_NAME_MAPPING[system_id]}'")
-    
-    return result
-
 def filter_fw_systems():
     """
     Filter the original pickle file to extract only the Faction Warfare systems
     for each warzone and save them to separate pickle files.
+    
+    This version uses a text file with system names to filter the systems.
     """
     try:
         # Load solar systems data
@@ -248,47 +143,35 @@ def filter_fw_systems():
             logger.error("Failed to load solar systems data")
             return
         
-        # Filter systems for Amarr-Minmatar warzone
-        ama_min_systems = filter_systems_by_region(solar_systems, AMARR_MINMATAR_REGIONS)
+        # Load Amarr/Minmatar system names from text file
+        ama_min_system_names = load_system_names_from_file(AMA_MIN_SYSTEMS_FILE)
+        if not ama_min_system_names:
+            logger.error("Failed to load Amarr/Minmatar system names")
+            return
         
-        # Add permanent frontline systems if they're not already included
-        frontline_systems = filter_systems_by_name(solar_systems, 
-                                                 AMARR_PERMANENT_FRONTLINES.union(MINMATAR_PERMANENT_FRONTLINES))
-        for system_id, system_data in frontline_systems.items():
-            if system_id not in ama_min_systems:
-                ama_min_systems[system_id] = system_data
+        # Filter systems for Amarr-Minmatar warzone based on system names
+        ama_min_systems = filter_systems_by_name(solar_systems, ama_min_system_names)
+        logger.info(f"Filtered {len(ama_min_systems)} systems for Amarr-Minmatar warzone based on system names")
         
         # Ensure all connected systems are included
         ama_min_systems = ensure_connected_systems(solar_systems, ama_min_systems)
+        logger.info(f"After ensuring connected systems: {len(ama_min_systems)} systems for Amarr-Minmatar warzone")
         
-        # Apply real system names to replace generic names
-        ama_min_systems = apply_real_system_names(ama_min_systems)
-        
-        # Filter systems for Caldari-Gallente warzone
-        cal_gal_systems = filter_systems_by_region(solar_systems, CALDARI_GALLENTE_REGIONS)
-        
-        # Ensure all connected systems are included
-        cal_gal_systems = ensure_connected_systems(solar_systems, cal_gal_systems)
-        
-        # Apply real system names to replace generic names
-        cal_gal_systems = apply_real_system_names(cal_gal_systems)
-        
-        # Save filtered systems to pickle files
+        # Save filtered systems to pickle file
         with open(AMA_MIN_OUTPUT_FILE, 'wb') as f:
             pickle.dump(ama_min_systems, f)
         logger.info(f"Saved {len(ama_min_systems)} Amarr-Minmatar systems to {AMA_MIN_OUTPUT_FILE}")
         
-        with open(CAL_GAL_OUTPUT_FILE, 'wb') as f:
-            pickle.dump(cal_gal_systems, f)
-        logger.info(f"Saved {len(cal_gal_systems)} Caldari-Gallente systems to {CAL_GAL_OUTPUT_FILE}")
-        
         # Print some statistics
         logger.info(f"Original solar systems: {len(solar_systems)}")
         logger.info(f"Amarr-Minmatar systems: {len(ama_min_systems)} ({len(ama_min_systems)/len(solar_systems)*100:.2f}%)")
-        logger.info(f"Caldari-Gallente systems: {len(cal_gal_systems)} ({len(cal_gal_systems)/len(solar_systems)*100:.2f}%)")
+        
+        # Note: We're not handling Caldari-Gallente systems in this version
+        # If needed, a similar approach can be used with a separate text file
         
     except Exception as e:
         logger.error(f"Error filtering FW systems: {e}", exc_info=True)
 
 if __name__ == "__main__":
     filter_fw_systems()
+
