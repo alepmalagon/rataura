@@ -15,6 +15,22 @@ from eve_wiggin.models.faction_warfare import (
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Define permanent frontline systems
+AMARR_PERMANENT_FRONTLINES = {
+    "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"
+}
+
+MINMATAR_PERMANENT_FRONTLINES = {
+    "Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"
+}
+
+# System ID to name mapping (to be populated)
+SYSTEM_ID_TO_NAME = {}
+# System name to ID mapping (to be populated)
+SYSTEM_NAME_TO_ID = {}
+# System connections (adjacency graph)
+SYSTEM_CONNECTIONS = {}
+
 
 class FWAnalyzer:
     """
@@ -90,6 +106,9 @@ class FWAnalyzer:
                 
                 systems.append(system)
             
+            # Get system names and build connections
+            await self.build_system_connections(systems)
+            
             # Determine system adjacency
             systems = await self.determine_system_adjacency(systems)
             
@@ -97,6 +116,95 @@ class FWAnalyzer:
         except Exception as e:
             logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
             raise
+    
+    async def build_system_connections(self, systems: List[FWSystem]) -> None:
+        """
+        Build a graph of system connections using stargate data.
+        
+        Args:
+            systems (List[FWSystem]): The list of faction warfare systems.
+        """
+        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID, SYSTEM_CONNECTIONS
+        
+        # If connections are already built, skip
+        if SYSTEM_CONNECTIONS:
+            return
+        
+        logger.info("Building system connections graph...")
+        
+        # Get system names and IDs
+        for system in systems:
+            try:
+                system_info = await self.esi_client.get_system(system.solar_system_id)
+                system_name = system_info.get("name", f"System {system.solar_system_id}")
+                system.solar_system_name = system_name
+                
+                SYSTEM_ID_TO_NAME[system.solar_system_id] = system_name
+                SYSTEM_NAME_TO_ID[system_name] = system.solar_system_id
+                
+                # Initialize connections
+                if system.solar_system_id not in SYSTEM_CONNECTIONS:
+                    SYSTEM_CONNECTIONS[system.solar_system_id] = set()
+                
+                # Get stargates for this system
+                stargates = system_info.get("stargates", [])
+                
+                # For each stargate, get the destination system
+                for stargate_id in stargates:
+                    try:
+                        stargate_info = await self.esi_client.get(f"/universe/stargates/{stargate_id}/")
+                        destination = stargate_info.get("destination", {})
+                        destination_system_id = destination.get("system_id")
+                        
+                        if destination_system_id:
+                            # Add connection
+                            SYSTEM_CONNECTIONS[system.solar_system_id].add(destination_system_id)
+                            
+                            # Initialize reverse connection if needed
+                            if destination_system_id not in SYSTEM_CONNECTIONS:
+                                SYSTEM_CONNECTIONS[destination_system_id] = set()
+                            
+                            # Add reverse connection
+                            SYSTEM_CONNECTIONS[destination_system_id].add(system.solar_system_id)
+                    except Exception as e:
+                        logger.warning(f"Error getting stargate {stargate_id} info: {e}")
+                        continue
+            except Exception as e:
+                logger.warning(f"Error getting system {system.solar_system_id} info: {e}")
+                continue
+        
+        logger.info(f"Built connections for {len(SYSTEM_CONNECTIONS)} systems")
+        
+        # If we couldn't get stargate data, use a fallback approach with mock connections
+        if not SYSTEM_CONNECTIONS:
+            logger.warning("Using mock system connections due to API limitations")
+            self.build_mock_system_connections(systems)
+    
+    def build_mock_system_connections(self, systems: List[FWSystem]) -> None:
+        """
+        Build mock system connections based on system IDs.
+        This is a fallback when we can't get real stargate data.
+        
+        Args:
+            systems (List[FWSystem]): The list of faction warfare systems.
+        """
+        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID, SYSTEM_CONNECTIONS
+        
+        # Get system names
+        for system in systems:
+            system_name = system.solar_system_name or f"System {system.solar_system_id}"
+            SYSTEM_ID_TO_NAME[system.solar_system_id] = system_name
+            SYSTEM_NAME_TO_ID[system_name] = system.solar_system_id
+        
+        # Create mock connections based on system IDs
+        # This is not accurate but provides a fallback
+        for i, system in enumerate(systems):
+            SYSTEM_CONNECTIONS[system.solar_system_id] = set()
+            
+            # Connect to a few nearby systems based on ID proximity
+            for j, other_system in enumerate(systems):
+                if i != j and abs(i - j) <= 3:  # Connect to systems with nearby indices
+                    SYSTEM_CONNECTIONS[system.solar_system_id].add(other_system.solar_system_id)
     
     async def determine_system_adjacency(self, systems: List[FWSystem]) -> List[FWSystem]:
         """
@@ -108,48 +216,69 @@ class FWAnalyzer:
         Returns:
             List[FWSystem]: The updated list of faction warfare systems with adjacency information.
         """
-        # Group systems by warzone and faction
-        amarr_systems = []
-        minmatar_systems = []
-        caldari_systems = []
-        gallente_systems = []
+        # Create lookup dictionaries
+        system_by_id = {system.solar_system_id: system for system in systems}
+        amarr_systems = [s for s in systems if s.owner_faction_id == FactionID.AMARR_EMPIRE]
+        minmatar_systems = [s for s in systems if s.owner_faction_id == FactionID.MINMATAR_REPUBLIC]
         
+        # First, mark all systems as rearguard by default
         for system in systems:
-            if system.owner_faction_id == FactionID.AMARR_EMPIRE:
-                amarr_systems.append(system)
-            elif system.owner_faction_id == FactionID.MINMATAR_REPUBLIC:
-                minmatar_systems.append(system)
-            elif system.owner_faction_id == FactionID.CALDARI_STATE:
-                caldari_systems.append(system)
-            elif system.owner_faction_id == FactionID.GALLENTE_FEDERATION:
-                gallente_systems.append(system)
+            system.adjacency = SystemAdjacency.REARGUARD
         
-        # In EVE Online, the adjacency type is determined by the ESI API
-        # Frontline systems: Systems where the contest can move fastest
-        # Command Operations: Systems where the contest moves at medium speed
-        # Rearguard: Systems where the contest moves very slowly
-        
-        # For now, we'll use a simplified approach based on the ESI data
-        # In a real implementation, we would use the actual adjacency data from ESI
-        # or calculate it based on stargate connections and system positions
-        
+        # Check for permanent frontline systems
         for system in systems:
-            # For demonstration purposes, we'll use a heuristic based on victory points
-            # and contested status to estimate the adjacency type
+            system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
             
-            # Systems with high contest percentage are likely frontlines
-            if system.contest_percent > 50.0:
+            # Check if this is a permanent frontline for the controlling faction
+            if (system.owner_faction_id == FactionID.AMARR_EMPIRE and 
+                system_name in AMARR_PERMANENT_FRONTLINES):
                 system.adjacency = SystemAdjacency.FRONTLINE
-            # Systems with medium contest percentage are likely command operations
-            elif system.contest_percent > 20.0:
-                system.adjacency = SystemAdjacency.COMMAND_OPERATIONS
-            # All other systems are rearguards
-            else:
-                system.adjacency = SystemAdjacency.REARGUARD
+                continue
+                
+            if (system.owner_faction_id == FactionID.MINMATAR_REPUBLIC and 
+                system_name in MINMATAR_PERMANENT_FRONTLINES):
+                system.adjacency = SystemAdjacency.FRONTLINE
+                continue
+        
+        # Determine frontlines based on enemy adjacency
+        for system in systems:
+            # Skip if already marked as frontline
+            if system.adjacency == SystemAdjacency.FRONTLINE:
+                continue
+                
+            # Get connected systems
+            connected_system_ids = SYSTEM_CONNECTIONS.get(system.solar_system_id, set())
             
-            # Note: In a production implementation, we would use the actual
-            # adjacency data from the ESI API or calculate it based on the
-            # system's position relative to enemy territory
+            # Check if any connected system is owned by the enemy faction
+            for connected_id in connected_system_ids:
+                if connected_id in system_by_id:
+                    connected_system = system_by_id[connected_id]
+                    
+                    # If Amarr system is connected to Minmatar system or vice versa
+                    if ((system.owner_faction_id == FactionID.AMARR_EMPIRE and 
+                         connected_system.owner_faction_id == FactionID.MINMATAR_REPUBLIC) or
+                        (system.owner_faction_id == FactionID.MINMATAR_REPUBLIC and 
+                         connected_system.owner_faction_id == FactionID.AMARR_EMPIRE)):
+                        system.adjacency = SystemAdjacency.FRONTLINE
+                        break
+        
+        # Determine command operations systems (two jumps from enemy territory)
+        for system in systems:
+            # Skip if already marked as frontline
+            if system.adjacency == SystemAdjacency.FRONTLINE:
+                continue
+                
+            # Get connected systems
+            connected_system_ids = SYSTEM_CONNECTIONS.get(system.solar_system_id, set())
+            
+            # Check if any connected system is a frontline
+            for connected_id in connected_system_ids:
+                if connected_id in system_by_id:
+                    connected_system = system_by_id[connected_id]
+                    
+                    if connected_system.adjacency == SystemAdjacency.FRONTLINE:
+                        system.adjacency = SystemAdjacency.COMMAND_OPERATIONS
+                        break
         
         return systems
     
