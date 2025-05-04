@@ -15,9 +15,9 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Path to solar systems data file
-SOLAR_SYSTEMS_FILE = "eve_wiggin/eve_wiggin/data/solar_systems.pickle"
-AMA_MIN_OUTPUT_FILE = "eve_wiggin/eve_wiggin/data/ama_min.pickle"
-CAL_GAL_OUTPUT_FILE = "eve_wiggin/eve_wiggin/data/cal_gal.pickle"
+SOLAR_SYSTEMS_FILE = "eve_wiggin/data/solar_systems.pickle"
+AMA_MIN_OUTPUT_FILE = "eve_wiggin/data/ama_min.pickle"
+CAL_GAL_OUTPUT_FILE = "eve_wiggin/data/cal_gal.pickle"
 
 # Faction IDs
 AMARR_EMPIRE = 500003
@@ -195,4 +195,3 @@ def filter_fw_systems():
 
 if __name__ == "__main__":
     filter_fw_systems()
-
