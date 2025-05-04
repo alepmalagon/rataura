@@ -95,6 +95,25 @@ MOCK_SYSTEM_NAMES = {
     30003078: "Halmah"
 }
 
+# Mapping of stargate IDs to destination system IDs
+# This is used to handle the stargate endpoint
+MOCK_STARGATE_DESTINATIONS = {}
+
+# Initialize the stargate destinations based on MOCK_STARGATES
+for system_id, stargates in MOCK_STARGATES.items():
+    for i, stargate in enumerate(stargates):
+        # Generate a unique stargate ID
+        stargate_id = int(f"{system_id}{i}")
+        destination_system_id = stargate["destination"]["system_id"]
+        MOCK_STARGATE_DESTINATIONS[stargate_id] = {
+            "stargate_id": stargate_id,
+            "name": f"Stargate {stargate_id}",
+            "destination": {
+                "stargate_id": int(f"{destination_system_id}0"),  # Arbitrary destination stargate ID
+                "system_id": destination_system_id
+            }
+        }
+
 
 class ESIClient:
     """
@@ -128,11 +147,23 @@ class ESIClient:
         # Check if this is a stargate endpoint
         if endpoint.startswith("/universe/stargates/"):
             try:
-                stargate_id = int(endpoint.split("/")[-1])
-                return self.get_mock_stargate(stargate_id)
+                # Extract the stargate ID from the endpoint
+                stargate_id_str = endpoint.split("/")[-1]
+                if not stargate_id_str:
+                    logger.error(f"Empty stargate ID in endpoint {endpoint}")
+                    return self.get_default_stargate()
+                
+                stargate_id = int(stargate_id_str)
+                
+                # Check if we have this stargate in our mock data
+                if stargate_id in MOCK_STARGATE_DESTINATIONS:
+                    return MOCK_STARGATE_DESTINATIONS[stargate_id]
+                
+                # If not, return a default stargate with a valid destination
+                return self.get_default_stargate(stargate_id)
             except ValueError as e:
                 logger.error(f"Invalid stargate ID in endpoint {endpoint}: {e}")
-                return self.get_mock_stargate(0)  # Return a default stargate
+                return self.get_default_stargate()
         
         url = f"{ESI_BASE_URL}{endpoint}"
         headers = {
@@ -159,13 +190,71 @@ class ESIClient:
                 return self.get_mock_fw_systems()
             elif endpoint.startswith("/universe/systems/"):
                 try:
-                    system_id = int(endpoint.split("/")[-1])
+                    system_id_str = endpoint.split("/")[-1]
+                    if not system_id_str:
+                        logger.error(f"Empty system ID in endpoint {endpoint}")
+                        return self.get_mock_system(30003067)  # Default to Huola
+                    
+                    system_id = int(system_id_str)
                     return self.get_mock_system(system_id)
                 except ValueError as e:
                     logger.error(f"Invalid system ID in endpoint {endpoint}: {e}")
-                    return self.get_mock_system(0)  # Return a default system
+                    return self.get_mock_system(30003067)  # Default to Huola
             else:
                 raise
+    
+    def get_default_stargate(self, stargate_id: int = 50000000) -> Dict[str, Any]:
+        """
+        Get a default stargate with a valid destination.
+        
+        Args:
+            stargate_id (int): The ID of the stargate.
+        
+        Returns:
+            Dict[str, Any]: Default stargate information.
+        """
+        # Return a stargate that connects to a known system
+        return {
+            "stargate_id": stargate_id,
+            "name": f"Stargate {stargate_id}",
+            "destination": {
+                "stargate_id": 50000001,
+                "system_id": 30003067  # Huola
+            }
+        }
+    
+    def get_mock_system(self, system_id: int) -> Dict[str, Any]:
+        """
+        Get mock system information.
+        
+        Args:
+            system_id (int): The ID of the system.
+        
+        Returns:
+            Dict[str, Any]: Mock system information.
+        """
+        # Check if we have a predefined name for this system
+        system_name = MOCK_SYSTEM_NAMES.get(system_id, f"System {system_id}")
+        
+        # Generate stargate IDs for this system
+        stargates = []
+        if system_id in MOCK_STARGATES:
+            # Generate unique stargate IDs based on system ID
+            for i in range(len(MOCK_STARGATES[system_id])):
+                stargates.append(int(f"{system_id}{i}"))
+        else:
+            # Generate some default stargates
+            for i in range(3):  # Most systems have 3-4 stargates
+                stargates.append(int(f"{system_id}{i}"))
+        
+        return {
+            "system_id": system_id,
+            "name": system_name,
+            "security_status": 0.5,
+            "security_class": "C",
+            "constellation_id": system_id // 100,
+            "stargates": stargates
+        }
     
     def get_mock_stargate(self, stargate_id: int) -> Dict[str, Any]:
         """
@@ -199,40 +288,6 @@ class ESIClient:
                 "stargate_id": stargate_id + 1000,
                 "system_id": stargate_id + 2000
             }
-        }
-    
-    def get_mock_system(self, system_id: int) -> Dict[str, Any]:
-        """
-        Get mock system information.
-        
-        Args:
-            system_id (int): The ID of the system.
-        
-        Returns:
-            Dict[str, Any]: Mock system information.
-        """
-        # Check if we have a predefined name for this system
-        system_name = MOCK_SYSTEM_NAMES.get(system_id, f"System {system_id}")
-        
-        # Check if we have predefined stargates for this system
-        stargates = []
-        if system_id in MOCK_STARGATES:
-            # In a real implementation, we would generate stargate IDs
-            # For simplicity, we'll use system_id * 10 + index
-            for i in range(len(MOCK_STARGATES[system_id])):
-                stargates.append(system_id * 10 + i)
-        else:
-            # Generate some random stargates
-            for i in range(3):  # Most systems have 3-4 stargates
-                stargates.append(system_id * 10 + i)
-        
-        return {
-            "system_id": system_id,
-            "name": system_name,
-            "security_status": 0.5,
-            "security_class": "C",
-            "constellation_id": system_id // 100,
-            "stargates": stargates
         }
     
     def get_mock_fw_systems(self) -> List[Dict[str, Any]]:
