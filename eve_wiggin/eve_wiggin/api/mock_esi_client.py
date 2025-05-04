@@ -46,6 +46,25 @@ MOCK_STARGATES = {
     30002537: [
         {"destination": {"system_id": 30002538}},  # Amamake -> Vard
         {"destination": {"system_id": 30002539}}   # Amamake -> Siseide
+    ],
+    # Add more connections for other permanent frontline systems
+    # Amarr permanent frontlines
+    30002538: [  # Vard
+        {"destination": {"system_id": 30002537}},  # Vard -> Amamake
+        {"destination": {"system_id": 30002540}}   # Vard -> Some Minmatar system
+    ],
+    30002539: [  # Siseide
+        {"destination": {"system_id": 30002537}},  # Siseide -> Amamake
+        {"destination": {"system_id": 30002541}}   # Siseide -> Some Minmatar system
+    ],
+    # Minmatar permanent frontlines
+    30003068: [  # Kourmonen
+        {"destination": {"system_id": 30003067}},  # Kourmonen -> Huola
+        {"destination": {"system_id": 30003071}}   # Kourmonen -> Some Amarr system
+    ],
+    30003070: [  # Sosala
+        {"destination": {"system_id": 30003069}},  # Sosala -> Kamela
+        {"destination": {"system_id": 30003072}}   # Sosala -> Some Amarr system
     ]
 }
 
@@ -57,7 +76,23 @@ MOCK_SYSTEM_NAMES = {
     30003070: "Sosala",
     30002537: "Amamake",
     30002538: "Vard",
-    30002539: "Siseide"
+    30002539: "Siseide",
+    30002540: "Minmatar System 1",
+    30002541: "Minmatar System 2",
+    30003071: "Amarr System 1",
+    30003072: "Amarr System 2",
+    # Add more permanent frontline systems
+    30002542: "Bosboger",
+    30002543: "Auner",
+    30002544: "Resbroko",
+    30002545: "Evati",
+    30002546: "Arnstur",
+    30003073: "Raa",
+    30003074: "Anka",
+    30003075: "Iesa",
+    30003076: "Uusanen",
+    30003077: "Saikamon",
+    30003078: "Halmah"
 }
 
 
@@ -134,6 +169,19 @@ class ESIClient:
         Returns:
             Dict[str, Any]: Mock stargate information.
         """
+        # Extract system ID from stargate ID (our convention: system_id * 10 + index)
+        system_id = stargate_id // 10
+        index = stargate_id % 10
+        
+        # Check if we have predefined stargates for this system
+        if system_id in MOCK_STARGATES and index < len(MOCK_STARGATES[system_id]):
+            destination = MOCK_STARGATES[system_id][index]["destination"]
+            return {
+                "stargate_id": stargate_id,
+                "name": f"Stargate {stargate_id}",
+                "destination": destination
+            }
+        
         # For simplicity, we'll just return a mock destination
         # In a real implementation, we would have a mapping of stargate IDs to destinations
         return {

@@ -2,36 +2,25 @@
 Configuration module for EVE Wiggin.
 """
 
-import os
-from typing import Dict, Any, Optional
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
     """
-    Configuration settings for EVE Wiggin.
+    Application settings.
     """
-    # Application settings
     app_name: str = "EVE Wiggin"
-    app_description: str = "Strategic Analysis Tool for EVE Online Faction Warfare"
     app_version: str = "0.1.0"
-    debug: bool = False
+    log_level: str = "DEBUG"  # Changed from INFO to DEBUG for more detailed logging
     
-    # EVE Online ESI API settings
-    esi_base_url: str = "https://esi.evetech.net/latest"
-    eve_user_agent: str = "EVE-Wiggin/0.1.0 (https://github.com/alepmalagon/rataura)"
-    
-    # Database settings
-    db_url: Optional[str] = None
-    
-    # Logging settings
-    log_level: str = "INFO"
+    # ESI API settings
+    esi_client_id: str = ""
+    esi_client_secret: str = ""
+    esi_callback_url: str = "http://localhost:8000/callback"
     
     class Config:
-        env_file = ".env"
         env_prefix = "EVE_WIGGIN_"
+        env_file = ".env"
 
 
-# Create a global settings instance
 settings = Settings()
-
