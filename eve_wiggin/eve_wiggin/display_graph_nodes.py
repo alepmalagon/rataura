@@ -100,9 +100,9 @@ async def display_graph_nodes():
                 "victory_points": data.get("victory_points", 0),
                 "victory_points_threshold": data.get("victory_points_threshold", 0),
                 "contest_percent": round(data.get("contest_percent", 0), 2),
-                "advantage": data.get("advantage", 0),
+                "advantage": round(data.get("advantage", 0), 2),
                 "contested": data.get("contested", "uncontested"),
-                "neighbors": list(graph.neighbors(node_id))
+                "neighbors": [graph.nodes[n].get("solar_system_name", n) for n in graph.neighbors(node_id)]
             }
             
             # Log the node data
@@ -118,4 +118,3 @@ async def display_graph_nodes():
 if __name__ == "__main__":
     # Run the async function
     asyncio.run(display_graph_nodes())
-
