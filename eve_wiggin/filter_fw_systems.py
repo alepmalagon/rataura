@@ -9,7 +9,7 @@ This version uses a text file with system names to filter the systems.
 import pickle
 import os
 import logging
-from typing import Dict, List, Set, Any
+from typing import Dict, List, Set, Any, TypedDict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -22,26 +22,50 @@ AMA_MIN_OUTPUT_FILE = "eve_wiggin/data/ama_min.pickle"
 CAL_GAL_OUTPUT_FILE = "eve_wiggin/data/cal_gal.pickle"
 
 # Path to the text file containing Amarr/Minmatar system names
-AMA_MIN_SYSTEMS_FILE = "eve_wiggin/eve_wiggin/data/ama_min.txt"
+AMA_MIN_SYSTEMS_FILE = "eve_wiggin/data/ama_min.txt"
 
-def load_solar_systems() -> Dict[str, Any]:
+
+class SolarSystem(TypedDict):
+    """Type definition for solar system data."""
+    solar_system_name: str
+    solar_system_id: str
+    region_name: str
+    region_id: str
+    constellation_name: str
+    constellation_id: str
+    adjacent: List[str]  # list of all adjacent Solar Systems in the network
+
+def load_solar_systems(filepath: str) -> Dict[int, SolarSystem]:
     """
-    Load solar systems data from pickle file.
+    Load solar system data from a pickle file.
     
+    Args:
+        filepath: Path to the pickle file containing solar system data
+        
     Returns:
-        Dict[str, Any]: The solar systems data.
+        Dictionary mapping solar system IDs to solar system data
     """
     try:
-        if os.path.exists(SOLAR_SYSTEMS_FILE):
-            with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
-                solar_systems = pickle.load(f)
-            logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
-            return solar_systems
-        else:
-            logger.error(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
-            return {}
+        logger.info(f"Attempting to load solar system data from {filepath}")
+        with open(filepath, 'rb') as f:
+            solar_systems = pickle.load(f)
+        
+        # Log some sample data to verify structure
+        if solar_systems:
+            sample_key = next(iter(solar_systems))
+            logger.info(f"Sample solar system key type: {type(sample_key).__name__}")
+            logger.info(f"Sample solar system data structure: {list(solar_systems[sample_key].keys())}")
+            
+        logger.info(f"Successfully loaded {len(solar_systems)} solar systems from {filepath}")
+        return solar_systems
+    except FileNotFoundError:
+        logger.error(f"Solar system data file not found at {filepath}")
+        return {}
+    except pickle.UnpicklingError:
+        logger.error(f"Error unpickling solar system data from {filepath}. File may be corrupted.")
+        return {}
     except Exception as e:
-        logger.error(f"Error loading solar systems data: {e}", exc_info=True)
+        logger.error(f"Unexpected error loading solar system data from {filepath}: {e}")
         return {}
 
 def load_system_names_from_file(file_path: str) -> Set[str]:
@@ -82,8 +106,10 @@ def filter_systems_by_name(solar_systems: Dict[str, Any], system_names: Set[str]
     filtered_systems = {}
     
     for system_id, system_data in solar_systems.items():
-        system_name = system_data.get("name", "")
+        system_name = system_data.get("solar_system_name", "")
+        logger.info(f"Checking system name: {system_name}")
         if system_name in system_names:
+            logger.info(f"System name matches: {system_name}")
             filtered_systems[system_id] = system_data
     
     return filtered_systems
@@ -138,13 +164,14 @@ def filter_fw_systems():
     """
     try:
         # Load solar systems data
-        solar_systems = load_solar_systems()
+        solar_systems = load_solar_systems(SOLAR_SYSTEMS_FILE)
         if not solar_systems:
             logger.error("Failed to load solar systems data")
             return
         
         # Load Amarr/Minmatar system names from text file
         ama_min_system_names = load_system_names_from_file(AMA_MIN_SYSTEMS_FILE)
+        logger.info(f"Loaded Amarr/Minmatar system names \n {ama_min_system_names}")
         if not ama_min_system_names:
             logger.error("Failed to load Amarr/Minmatar system names")
             return
@@ -152,11 +179,7 @@ def filter_fw_systems():
         # Filter systems for Amarr-Minmatar warzone based on system names
         ama_min_systems = filter_systems_by_name(solar_systems, ama_min_system_names)
         logger.info(f"Filtered {len(ama_min_systems)} systems for Amarr-Minmatar warzone based on system names")
-        
-        # Ensure all connected systems are included
-        ama_min_systems = ensure_connected_systems(solar_systems, ama_min_systems)
-        logger.info(f"After ensuring connected systems: {len(ama_min_systems)} systems for Amarr-Minmatar warzone")
-        
+              
         # Save filtered systems to pickle file
         with open(AMA_MIN_OUTPUT_FILE, 'wb') as f:
             pickle.dump(ama_min_systems, f)
