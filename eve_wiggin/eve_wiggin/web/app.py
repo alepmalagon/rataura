@@ -5,12 +5,15 @@ Flask application for EVE Wiggin.
 import logging
 import asyncio
 import json
+import os
+import pickle
 from typing import Dict, Any, List, Optional
 from flask import Flask, render_template, jsonify, request
 
 from eve_wiggin.api.fw_api import FWApi
 from eve_wiggin.models.faction_warfare import Warzone, FactionID
 from eve_wiggin.web.web_visualizer import WebVisualizer
+from eve_wiggin.services.adjacency_detector import SOLAR_SYSTEMS_FILE
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -116,6 +119,58 @@ async def analyze():
     
     except Exception as e:
         logger.error(f"Error in analyze: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/graph', methods=['POST'])
+async def get_graph_data():
+    """
+    Get graph data for faction warfare systems.
+    """
+    try:
+        # Initialize API if needed
+        init_api()
+        
+        # Get parameters from request
+        data = request.json or {}
+        warzone_key = data.get('warzone', 'amarr_minmatar')
+        filter_type = data.get('filter', 'all')
+        
+        # Get warzone status
+        logger.info("Getting warzone status for graph...")
+        warzone_status = await fw_api.get_warzone_status()
+        
+        # Focus on the selected warzone
+        warzone_enum = getattr(Warzone, warzone_key.upper())
+        warzone_data = warzone_status["warzones"].get(warzone_enum)
+        
+        if not warzone_data:
+            return jsonify({"error": f"Warzone data not available for {warzone_key}"})
+        
+        # Get systems in the warzone
+        logger.info(f"Getting systems for {warzone_key} warzone graph...")
+        warzone_systems = await fw_api.get_warzone_systems(warzone_enum)
+        
+        # Load solar systems data from pickle file
+        solar_systems = {}
+        try:
+            if os.path.exists(SOLAR_SYSTEMS_FILE):
+                with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
+                    solar_systems = pickle.load(f)
+                logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
+            else:
+                logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
+        except Exception as e:
+            logger.error(f"Error loading solar systems data: {e}", exc_info=True)
+            return jsonify({"error": f"Error loading solar systems data: {str(e)}"})
+        
+        # Generate graph data
+        graph_data = visualizer.generate_graph_data(warzone_systems, solar_systems, filter_type)
+        
+        return jsonify(graph_data)
+    
+    except Exception as e:
+        logger.error(f"Error in get_graph_data: {e}", exc_info=True)
         return jsonify({"error": str(e)})
 
 
