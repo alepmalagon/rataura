@@ -5,6 +5,8 @@ This module provides a mock implementation of the rataura.esi.client module.
 
 import logging
 import aiohttp
+import json
+import os
 from typing import Dict, Any, Optional, List, Union
 
 # Configure logging
@@ -12,6 +14,51 @@ logger = logging.getLogger(__name__)
 
 # ESI API base URL
 ESI_BASE_URL = "https://esi.evetech.net/latest"
+
+# Mock data directory
+MOCK_DATA_DIR = os.path.join(os.path.dirname(__file__), "../data/mock")
+
+# Ensure mock data directory exists
+os.makedirs(MOCK_DATA_DIR, exist_ok=True)
+
+# Define permanent frontline systems for reference
+AMARR_PERMANENT_FRONTLINES = {
+    "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"
+}
+
+MINMATAR_PERMANENT_FRONTLINES = {
+    "Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"
+}
+
+# Mock stargate connections for key systems in Amarr/Minmatar warzone
+MOCK_STARGATES = {
+    # Huola connections
+    30003067: [
+        {"destination": {"system_id": 30003068}},  # Huola -> Kourmonen
+        {"destination": {"system_id": 30003069}}   # Huola -> Kamela
+    ],
+    # Kamela connections
+    30003069: [
+        {"destination": {"system_id": 30003067}},  # Kamela -> Huola
+        {"destination": {"system_id": 30003070}}   # Kamela -> Sosala
+    ],
+    # Amamake connections
+    30002537: [
+        {"destination": {"system_id": 30002538}},  # Amamake -> Vard
+        {"destination": {"system_id": 30002539}}   # Amamake -> Siseide
+    ]
+}
+
+# Mock system names for key systems
+MOCK_SYSTEM_NAMES = {
+    30003067: "Huola",
+    30003068: "Kourmonen",
+    30003069: "Kamela",
+    30003070: "Sosala",
+    30002537: "Amamake",
+    30002538: "Vard",
+    30002539: "Siseide"
+}
 
 
 class ESIClient:
@@ -43,6 +90,11 @@ class ESIClient:
         Raises:
             Exception: If the request fails.
         """
+        # Check if this is a stargate endpoint
+        if endpoint.startswith("/universe/stargates/"):
+            stargate_id = int(endpoint.split("/")[-1])
+            return self.get_mock_stargate(stargate_id)
+        
         url = f"{ESI_BASE_URL}{endpoint}"
         headers = {
             "User-Agent": self.user_agent,
@@ -52,14 +104,175 @@ class ESIClient:
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    error_text = await response.text()
-                    logger.error(f"ESI API error: {response.status} - {error_text}")
-                    raise Exception(f"ESI API error: {response.status} - {error_text}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"ESI API error: {response.status} - {error_text}")
+                        raise Exception(f"ESI API error: {response.status} - {error_text}")
+        except Exception as e:
+            logger.error(f"Error accessing ESI API: {e}")
+            # Return mock data for specific endpoints
+            if endpoint == "/fw/systems/":
+                return self.get_mock_fw_systems()
+            elif endpoint.startswith("/universe/systems/"):
+                system_id = int(endpoint.split("/")[-1])
+                return self.get_mock_system(system_id)
+            else:
+                raise
+    
+    def get_mock_stargate(self, stargate_id: int) -> Dict[str, Any]:
+        """
+        Get mock stargate information.
+        
+        Args:
+            stargate_id (int): The ID of the stargate.
+        
+        Returns:
+            Dict[str, Any]: Mock stargate information.
+        """
+        # For simplicity, we'll just return a mock destination
+        # In a real implementation, we would have a mapping of stargate IDs to destinations
+        return {
+            "stargate_id": stargate_id,
+            "name": f"Stargate {stargate_id}",
+            "destination": {
+                "stargate_id": stargate_id + 1000,
+                "system_id": stargate_id + 2000
+            }
+        }
+    
+    def get_mock_system(self, system_id: int) -> Dict[str, Any]:
+        """
+        Get mock system information.
+        
+        Args:
+            system_id (int): The ID of the system.
+        
+        Returns:
+            Dict[str, Any]: Mock system information.
+        """
+        # Check if we have a predefined name for this system
+        system_name = MOCK_SYSTEM_NAMES.get(system_id, f"System {system_id}")
+        
+        # Check if we have predefined stargates for this system
+        stargates = []
+        if system_id in MOCK_STARGATES:
+            # In a real implementation, we would generate stargate IDs
+            # For simplicity, we'll use system_id * 10 + index
+            for i in range(len(MOCK_STARGATES[system_id])):
+                stargates.append(system_id * 10 + i)
+        else:
+            # Generate some random stargates
+            for i in range(3):  # Most systems have 3-4 stargates
+                stargates.append(system_id * 10 + i)
+        
+        return {
+            "system_id": system_id,
+            "name": system_name,
+            "security_status": 0.5,
+            "security_class": "C",
+            "constellation_id": system_id // 100,
+            "stargates": stargates
+        }
+    
+    def get_mock_fw_systems(self) -> List[Dict[str, Any]]:
+        """
+        Get mock faction warfare systems.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of mock faction warfare systems.
+        """
+        # Path to mock data file
+        mock_file = os.path.join(MOCK_DATA_DIR, "fw_systems.json")
+        
+        # Check if mock data file exists
+        if os.path.exists(mock_file):
+            try:
+                with open(mock_file, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Error loading mock data: {e}")
+        
+        # Generate mock data
+        systems = []
+        
+        # Amarr systems
+        for i in range(30):
+            system_id = 30003000 + i
+            systems.append({
+                "solar_system_id": system_id,
+                "owner_faction_id": 500003,  # Amarr Empire
+                "occupier_faction_id": 500003,
+                "contested": "uncontested" if i % 3 != 0 else "contested",
+                "victory_points": 1000 * (i % 10),
+                "victory_points_threshold": 20000,
+                "advantage": 0.0
+            })
+        
+        # Minmatar systems
+        for i in range(30):
+            system_id = 30002500 + i
+            systems.append({
+                "solar_system_id": system_id,
+                "owner_faction_id": 500002,  # Minmatar Republic
+                "occupier_faction_id": 500002,
+                "contested": "uncontested" if i % 3 != 0 else "contested",
+                "victory_points": 1000 * (i % 10),
+                "victory_points_threshold": 20000,
+                "advantage": 0.0
+            })
+        
+        # Add specific systems with known names
+        for system_id, name in MOCK_SYSTEM_NAMES.items():
+            # Find if system already exists in the list
+            existing = next((s for s in systems if s["solar_system_id"] == system_id), None)
+            
+            if existing:
+                # Update existing system
+                if name in AMARR_PERMANENT_FRONTLINES:
+                    existing["owner_faction_id"] = 500003  # Amarr Empire
+                    existing["occupier_faction_id"] = 500003
+                    existing["contested"] = "contested"
+                elif name in MINMATAR_PERMANENT_FRONTLINES:
+                    existing["owner_faction_id"] = 500002  # Minmatar Republic
+                    existing["occupier_faction_id"] = 500002
+                    existing["contested"] = "contested"
+            else:
+                # Add new system
+                if name in AMARR_PERMANENT_FRONTLINES:
+                    systems.append({
+                        "solar_system_id": system_id,
+                        "owner_faction_id": 500003,  # Amarr Empire
+                        "occupier_faction_id": 500003,
+                        "contested": "contested",
+                        "victory_points": 5000,
+                        "victory_points_threshold": 20000,
+                        "advantage": 0.0
+                    })
+                elif name in MINMATAR_PERMANENT_FRONTLINES:
+                    systems.append({
+                        "solar_system_id": system_id,
+                        "owner_faction_id": 500002,  # Minmatar Republic
+                        "occupier_faction_id": 500002,
+                        "contested": "contested",
+                        "victory_points": 5000,
+                        "victory_points_threshold": 20000,
+                        "advantage": 0.0
+                    })
+        
+        # Save mock data for future use
+        try:
+            os.makedirs(os.path.dirname(mock_file), exist_ok=True)
+            with open(mock_file, "w") as f:
+                json.dump(systems, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving mock data: {e}")
+        
+        return systems
     
     async def post(self, endpoint: str, data: Dict[str, Any], params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -104,7 +317,11 @@ class ESIClient:
         Returns:
             List[Dict[str, Any]]: A list of faction warfare solar systems.
         """
-        return await self.get("/fw/systems/")
+        try:
+            return await self.get("/fw/systems/")
+        except Exception as e:
+            logger.error(f"Error getting faction warfare systems: {e}")
+            return self.get_mock_fw_systems()
     
     async def get_fw_wars(self) -> List[Dict[str, Any]]:
         """
@@ -134,7 +351,11 @@ class ESIClient:
         Returns:
             Dict[str, Any]: Information about the solar system.
         """
-        return await self.get(f"/universe/systems/{system_id}/")
+        try:
+            return await self.get(f"/universe/systems/{system_id}/")
+        except Exception as e:
+            logger.error(f"Error getting system {system_id}: {e}")
+            return self.get_mock_system(system_id)
     
     async def get_constellation(self, constellation_id: int) -> Dict[str, Any]:
         """
@@ -230,4 +451,3 @@ def get_esi_client(access_token: Optional[str] = None) -> ESIClient:
     if access_token:
         return ESIClient(access_token)
     return esi_client
-
