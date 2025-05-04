@@ -7,6 +7,7 @@ import logging
 import aiohttp
 import json
 import os
+import re
 from typing import Dict, Any, Optional, List, Union
 
 # Configure logging
@@ -146,23 +147,23 @@ class ESIClient:
         """
         # Check if this is a stargate endpoint
         if endpoint.startswith("/universe/stargates/"):
+            # Extract the stargate ID from the endpoint using regex to be more robust
+            match = re.search(r'/universe/stargates/(\d+)/?$', endpoint)
+            if not match:
+                logger.warning(f"Invalid stargate endpoint format: {endpoint}")
+                return self.get_default_stargate()
+            
             try:
-                # Extract the stargate ID from the endpoint
-                stargate_id_str = endpoint.split("/")[-1]
-                if not stargate_id_str:
-                    logger.error(f"Empty stargate ID in endpoint {endpoint}")
-                    return self.get_default_stargate()
-                
-                stargate_id = int(stargate_id_str)
+                stargate_id = int(match.group(1))
                 
                 # Check if we have this stargate in our mock data
                 if stargate_id in MOCK_STARGATE_DESTINATIONS:
                     return MOCK_STARGATE_DESTINATIONS[stargate_id]
                 
-                # If not, return a default stargate with a valid destination
-                return self.get_default_stargate(stargate_id)
-            except ValueError as e:
-                logger.error(f"Invalid stargate ID in endpoint {endpoint}: {e}")
+                # If not, generate a consistent mock stargate based on the ID
+                return self.get_mock_stargate(stargate_id)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid stargate ID in endpoint {endpoint}: {e}")
                 return self.get_default_stargate()
         
         url = f"{ESI_BASE_URL}{endpoint}"
@@ -189,16 +190,17 @@ class ESIClient:
             if endpoint == "/fw/systems/":
                 return self.get_mock_fw_systems()
             elif endpoint.startswith("/universe/systems/"):
+                # Extract the system ID from the endpoint using regex to be more robust
+                match = re.search(r'/universe/systems/(\d+)/?$', endpoint)
+                if not match:
+                    logger.warning(f"Invalid system endpoint format: {endpoint}")
+                    return self.get_mock_system(30003067)  # Default to Huola
+                
                 try:
-                    system_id_str = endpoint.split("/")[-1]
-                    if not system_id_str:
-                        logger.error(f"Empty system ID in endpoint {endpoint}")
-                        return self.get_mock_system(30003067)  # Default to Huola
-                    
-                    system_id = int(system_id_str)
+                    system_id = int(match.group(1))
                     return self.get_mock_system(system_id)
-                except ValueError as e:
-                    logger.error(f"Invalid system ID in endpoint {endpoint}: {e}")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid system ID in endpoint {endpoint}: {e}")
                     return self.get_mock_system(30003067)  # Default to Huola
             else:
                 raise
@@ -223,6 +225,39 @@ class ESIClient:
             }
         }
     
+    def get_mock_stargate(self, stargate_id: int) -> Dict[str, Any]:
+        """
+        Get mock stargate information based on the ID.
+        
+        Args:
+            stargate_id (int): The ID of the stargate.
+        
+        Returns:
+            Dict[str, Any]: Mock stargate information.
+        """
+        # Generate a deterministic destination based on the stargate ID
+        # This ensures consistent results for the same stargate ID
+        destination_system_id = 30003067  # Default to Huola
+        
+        # Use the stargate ID to determine a destination
+        # This is arbitrary but consistent
+        mod_value = stargate_id % 10
+        if mod_value < 5:
+            # Connect to an Amarr system
+            destination_system_id = 30003067 + (stargate_id % 3)  # Huola or nearby
+        else:
+            # Connect to a Minmatar system
+            destination_system_id = 30002537 + (stargate_id % 3)  # Amamake or nearby
+        
+        return {
+            "stargate_id": stargate_id,
+            "name": f"Stargate {stargate_id}",
+            "destination": {
+                "stargate_id": int(f"{destination_system_id}0"),
+                "system_id": destination_system_id
+            }
+        }
+    
     def get_mock_system(self, system_id: int) -> Dict[str, Any]:
         """
         Get mock system information.
@@ -233,6 +268,13 @@ class ESIClient:
         Returns:
             Dict[str, Any]: Mock system information.
         """
+        # Ensure system_id is an integer
+        try:
+            system_id = int(system_id)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid system ID: {system_id}, using default")
+            system_id = 30003067  # Default to Huola
+        
         # Check if we have a predefined name for this system
         system_name = MOCK_SYSTEM_NAMES.get(system_id, f"System {system_id}")
         
