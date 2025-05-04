@@ -15,6 +15,10 @@ from eve_wiggin.models.faction_warfare import Warzone, FactionID
 from eve_wiggin.web.web_visualizer import WebVisualizer
 from eve_wiggin.services.adjacency_detector import SOLAR_SYSTEMS_FILE
 
+# Define paths to filtered pickle files
+AMA_MIN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "ama_min.pickle")
+CAL_GAL_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cal_gal.pickle")
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -151,15 +155,28 @@ async def get_graph_data():
         logger.info(f"Getting systems for {warzone_key} warzone graph...")
         warzone_systems = await fw_api.get_warzone_systems(warzone_enum)
         
-        # Load solar systems data from pickle file
+        # Load solar systems data from the appropriate filtered pickle file
         solar_systems = {}
         try:
-            if os.path.exists(SOLAR_SYSTEMS_FILE):
-                with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
-                    solar_systems = pickle.load(f)
-                logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
+            # Select the appropriate pickle file based on the warzone
+            if warzone_key == 'amarr_minmatar':
+                pickle_file = AMA_MIN_FILE
             else:
-                logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
+                pickle_file = CAL_GAL_FILE
+                
+            if os.path.exists(pickle_file):
+                with open(pickle_file, 'rb') as f:
+                    solar_systems = pickle.load(f)
+                logger.info(f"Loaded {len(solar_systems)} solar systems from {pickle_file}")
+            else:
+                logger.warning(f"Filtered pickle file not found: {pickle_file}, falling back to original")
+                # Fall back to the original pickle file
+                if os.path.exists(SOLAR_SYSTEMS_FILE):
+                    with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
+                        solar_systems = pickle.load(f)
+                    logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
+                else:
+                    logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
         except Exception as e:
             logger.error(f"Error loading solar systems data: {e}", exc_info=True)
             return jsonify({"error": f"Error loading solar systems data: {str(e)}"})
