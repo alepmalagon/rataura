@@ -14,6 +14,7 @@ from eve_wiggin.api.fw_api import FWApi
 from eve_wiggin.models.faction_warfare import Warzone, FactionID
 from eve_wiggin.web.web_visualizer import WebVisualizer
 from eve_wiggin.services.adjacency_detector import SOLAR_SYSTEMS_FILE
+from eve_wiggin.graph_utils import load_pickle_to_dict, get_warzone_graph, analyze_graph
 
 # Define paths to filtered pickle files
 AMA_MIN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "ama_min.pickle")
@@ -155,39 +156,115 @@ async def get_graph_data():
         logger.info(f"Getting systems for {warzone_key} warzone graph...")
         warzone_systems = await fw_api.get_warzone_systems(warzone_enum)
         
-        # Load solar systems data from the appropriate filtered pickle file
-        solar_systems = {}
+        # Generate graph data using the new approach
         try:
-            # Select the appropriate pickle file based on the warzone
-            if warzone_key == 'amarr_minmatar':
-                pickle_file = AMA_MIN_FILE
-            else:
-                pickle_file = CAL_GAL_FILE
-                
-            if os.path.exists(pickle_file):
-                with open(pickle_file, 'rb') as f:
-                    solar_systems = pickle.load(f)
-                logger.info(f"Loaded {len(solar_systems)} solar systems from {pickle_file}")
-            else:
-                logger.warning(f"Filtered pickle file not found: {pickle_file}, falling back to original")
-                # Fall back to the original pickle file
-                if os.path.exists(SOLAR_SYSTEMS_FILE):
-                    with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
-                        solar_systems = pickle.load(f)
-                    logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
-                else:
-                    logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
+            # Get the NetworkX graph for the warzone
+            graph, system_name_to_index, systems_data = get_warzone_graph(warzone_key)
+            
+            # Generate graph data for visualization
+            graph_data = visualizer.generate_graph_data(warzone_systems, systems_data, filter_type)
+            
+            # Add graph metrics to the response
+            metrics = analyze_graph(graph)
+            graph_data["metrics"] = metrics
+            
+            return jsonify(graph_data)
+            
         except Exception as e:
-            logger.error(f"Error loading solar systems data: {e}", exc_info=True)
-            return jsonify({"error": f"Error loading solar systems data: {str(e)}"})
-        
-        # Generate graph data
-        graph_data = visualizer.generate_graph_data(warzone_systems, solar_systems, filter_type)
-        
-        return jsonify(graph_data)
+            logger.error(f"Error generating graph data: {e}", exc_info=True)
+            
+            # Fall back to the original approach if the new one fails
+            logger.warning("Falling back to original graph generation approach")
+            
+            # Load solar systems data from the appropriate filtered pickle file
+            solar_systems = {}
+            try:
+                # Select the appropriate pickle file based on the warzone
+                if warzone_key == 'amarr_minmatar':
+                    pickle_file = AMA_MIN_FILE
+                else:
+                    pickle_file = CAL_GAL_FILE
+                    
+                if os.path.exists(pickle_file):
+                    with open(pickle_file, 'rb') as f:
+                        solar_systems = pickle.load(f)
+                    logger.info(f"Loaded {len(solar_systems)} solar systems from {pickle_file}")
+                else:
+                    logger.warning(f"Filtered pickle file not found: {pickle_file}, falling back to original")
+                    # Fall back to the original pickle file
+                    if os.path.exists(SOLAR_SYSTEMS_FILE):
+                        with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
+                            solar_systems = pickle.load(f)
+                        logger.info(f"Loaded {len(solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
+                    else:
+                        logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
+            except Exception as e:
+                logger.error(f"Error loading solar systems data: {e}", exc_info=True)
+                return jsonify({"error": f"Error loading solar systems data: {str(e)}"})
+            
+            # Generate graph data
+            graph_data = visualizer.generate_graph_data(warzone_systems, solar_systems, filter_type)
+            
+            return jsonify(graph_data)
     
     except Exception as e:
         logger.error(f"Error in get_graph_data: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/pickle_data', methods=['GET'])
+def get_pickle_data():
+    """
+    Get the raw data from the pickle file as a list of dictionaries.
+    """
+    try:
+        # Get parameters from request
+        warzone_key = request.args.get('warzone', 'amarr_minmatar')
+        
+        # Select the appropriate pickle file
+        if warzone_key == 'amarr_minmatar':
+            pickle_file = AMA_MIN_FILE
+        else:
+            pickle_file = CAL_GAL_FILE
+        
+        # Load the pickle file into a list of dictionaries
+        systems_data = load_pickle_to_dict(pickle_file)
+        
+        # Return the data as JSON
+        return jsonify({
+            "warzone": warzone_key,
+            "systems_count": len(systems_data),
+            "systems": systems_data
+        })
+    
+    except Exception as e:
+        logger.error(f"Error in get_pickle_data: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/graph_metrics', methods=['GET'])
+def get_graph_metrics():
+    """
+    Get metrics about the warzone graph.
+    """
+    try:
+        # Get parameters from request
+        warzone_key = request.args.get('warzone', 'amarr_minmatar')
+        
+        # Get the NetworkX graph for the warzone
+        graph, system_name_to_index, systems_data = get_warzone_graph(warzone_key)
+        
+        # Analyze the graph
+        metrics = analyze_graph(graph)
+        
+        # Return the metrics as JSON
+        return jsonify({
+            "warzone": warzone_key,
+            "metrics": metrics
+        })
+    
+    except Exception as e:
+        logger.error(f"Error in get_graph_metrics: {e}", exc_info=True)
         return jsonify({"error": str(e)})
 
 
