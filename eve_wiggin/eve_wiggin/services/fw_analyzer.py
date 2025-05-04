@@ -12,6 +12,7 @@ from eve_wiggin.models.faction_warfare import (
     FactionID, Warzone, SystemStatus, SystemAdjacency
 )
 from eve_wiggin.services.adjacency_detector import get_adjacency_detector
+from eve_wiggin.graph_utils import get_warzone_graph
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -29,9 +30,6 @@ MINMATAR_PERMANENT_FRONTLINES = {
 SYSTEM_ID_TO_NAME = {}
 # System name to ID mapping (to be populated)
 SYSTEM_NAME_TO_ID = {}
-# System connections (adjacency graph)
-SYSTEM_CONNECTIONS = {}
-
 
 class FWAnalyzer:
     """
@@ -108,8 +106,8 @@ class FWAnalyzer:
                 
                 systems.append(system)
             
-            # Get system names and build connections
-            await self.build_system_connections(systems)
+            # Get system names from the NetworkX graph
+            await self.populate_system_names(systems)
             
             # Determine system adjacency
             systems = await self.determine_system_adjacency(systems)
@@ -119,144 +117,60 @@ class FWAnalyzer:
             logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
             raise
     
-    async def build_system_connections(self, systems: List[FWSystem]) -> None:
+    async def populate_system_names(self, systems: List[FWSystem]) -> None:
         """
-        Build a graph of system connections using stargate data.
+        Populate system names using the NetworkX graph data.
         
         Args:
             systems (List[FWSystem]): The list of faction warfare systems.
         """
-        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID, SYSTEM_CONNECTIONS
+        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID
         
-        # If connections are already built, skip
-        if SYSTEM_CONNECTIONS:
+        # If names are already populated, skip
+        if SYSTEM_ID_TO_NAME:
             return
         
-        logger.info("Building system connections graph...")
+        logger.info("Populating system names from NetworkX graph...")
         
-        # Get system names and IDs
-        for system in systems:
-            try:
-                system_info = await self.esi_client.get_system(system.solar_system_id)
-                system_name = system_info.get("name", f"System {system.solar_system_id}")
-                system.solar_system_name = system_name
-                
-                SYSTEM_ID_TO_NAME[system.solar_system_id] = system_name
-                SYSTEM_NAME_TO_ID[system_name] = system.solar_system_id
-                
-                # Initialize connections
-                if system.solar_system_id not in SYSTEM_CONNECTIONS:
-                    SYSTEM_CONNECTIONS[system.solar_system_id] = set()
-                
-                # Get stargates for this system
-                stargates = system_info.get("stargates", [])
-                
-                # For each stargate, get the destination system
-                for stargate_id in stargates:
-                    try:
-                        stargate_info = await self.esi_client.get(f"/universe/stargates/{stargate_id}/")
-                        destination = stargate_info.get("destination", {})
-                        destination_system_id = destination.get("system_id")
-                        
-                        if destination_system_id:
-                            # Add connection
-                            SYSTEM_CONNECTIONS[system.solar_system_id].add(destination_system_id)
-                            
-                            # Initialize reverse connection if needed
-                            if destination_system_id not in SYSTEM_CONNECTIONS:
-                                SYSTEM_CONNECTIONS[destination_system_id] = set()
-                            
-                            # Add reverse connection
-                            SYSTEM_CONNECTIONS[destination_system_id].add(system.solar_system_id)
-                    except Exception as e:
-                        logger.warning(f"Error getting stargate {stargate_id} info: {e}")
-                        continue
-            except Exception as e:
-                logger.warning(f"Error getting system {system.solar_system_id} info: {e}")
-                continue
+        # Get the NetworkX graph for both warzones
+        amarr_min_graph, _, amarr_min_systems = get_warzone_graph('amarr_minmatar')
+        cal_gal_graph, _, cal_gal_systems = get_warzone_graph('caldari_gallente')
         
-        logger.info(f"Built connections for {len(SYSTEM_CONNECTIONS)} systems")
+        # Combine systems data from both warzones
+        all_systems = amarr_min_systems + cal_gal_systems
         
-        # If we couldn't get stargate data, use a fallback approach with mock connections
-        if not SYSTEM_CONNECTIONS:
-            logger.warning("Using mock system connections due to API limitations")
-            self.build_mock_system_connections(systems)
-        
-        # Debug: Print system connections
-        logger.debug("System connections:")
-        for system_id, connections in SYSTEM_CONNECTIONS.items():
-            system_name = SYSTEM_ID_TO_NAME.get(system_id, f"System {system_id}")
-            connection_names = [SYSTEM_ID_TO_NAME.get(conn_id, f"System {conn_id}") for conn_id in connections]
-            logger.debug(f"{system_name} ({system_id}) -> {connection_names}")
-
-    def build_mock_system_connections(self, systems: List[FWSystem]) -> None:
-        """
-        Build mock system connections based on system IDs.
-        This is a fallback when we can't get real stargate data.
-        
-        Args:
-            systems (List[FWSystem]): The list of faction warfare systems.
-        """
-        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID, SYSTEM_CONNECTIONS
-        
-        # Get system names
-        for system in systems:
-            system_name = system.solar_system_name or f"System {system.solar_system_id}"
-            SYSTEM_ID_TO_NAME[system.solar_system_id] = system_name
-            SYSTEM_NAME_TO_ID[system_name] = system.solar_system_id
-        
-        # Create mock connections based on system IDs
-        # This is not accurate but provides a fallback
-        for i, system in enumerate(systems):
-            if system.solar_system_id not in SYSTEM_CONNECTIONS:
-                SYSTEM_CONNECTIONS[system.solar_system_id] = set()
+        # Populate system names
+        for system_data in all_systems:
+            system_id = system_data.get('system_id')
+            system_name = system_data.get('solar_system_name', f"System {system_id}")
             
-            # Connect to a few nearby systems based on ID proximity
-            for j, other_system in enumerate(systems):
-                if i != j and abs(i - j) <= 3:  # Connect to systems with nearby indices
-                    SYSTEM_CONNECTIONS[system.solar_system_id].add(other_system.solar_system_id)
+            if system_id and system_name:
+                SYSTEM_ID_TO_NAME[system_id] = system_name
+                SYSTEM_NAME_TO_ID[system_name] = system_id
+        
+        # Update system names in the FWSystem objects
+        for system in systems:
+            system_id = str(system.solar_system_id)
+            if system_id in SYSTEM_ID_TO_NAME:
+                system.solar_system_name = SYSTEM_ID_TO_NAME[system_id]
+            else:
+                # Try to get system info from ESI if not found in the graph
+                try:
+                    system_info = await self.esi_client.get_system(system.solar_system_id)
+                    system_name = system_info.get("name", f"System {system.solar_system_id}")
+                    system.solar_system_name = system_name
                     
-                    # Ensure the other system has a connections set
-                    if other_system.solar_system_id not in SYSTEM_CONNECTIONS:
-                        SYSTEM_CONNECTIONS[other_system.solar_system_id] = set()
-                    
-                    # Add reverse connection
-                    SYSTEM_CONNECTIONS[other_system.solar_system_id].add(system.solar_system_id)
+                    SYSTEM_ID_TO_NAME[system_id] = system_name
+                    SYSTEM_NAME_TO_ID[system_name] = system_id
+                except Exception as e:
+                    logger.warning(f"Error getting system {system.solar_system_id} info: {e}")
+                    system.solar_system_name = f"System {system.solar_system_id}"
         
-        # Add connections for permanent frontline systems
-        # This ensures that permanent frontlines are connected to systems of the opposite faction
-        amarr_systems = [s for s in systems if s.owner_faction_id == FactionID.AMARR_EMPIRE]
-        minmatar_systems = [s for s in systems if s.owner_faction_id == FactionID.MINMATAR_REPUBLIC]
-        
-        # Connect Amarr permanent frontlines to Minmatar systems
-        for system in amarr_systems:
-            system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
-            if system_name in AMARR_PERMANENT_FRONTLINES:
-                # Connect to at least one Minmatar system
-                if minmatar_systems:
-                    minmatar_system = minmatar_systems[0]
-                    SYSTEM_CONNECTIONS[system.solar_system_id].add(minmatar_system.solar_system_id)
-                    SYSTEM_CONNECTIONS[minmatar_system.solar_system_id].add(system.solar_system_id)
-        
-        # Connect Minmatar permanent frontlines to Amarr systems
-        for system in minmatar_systems:
-            system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
-            if system_name in MINMATAR_PERMANENT_FRONTLINES:
-                # Connect to at least one Amarr system
-                if amarr_systems:
-                    amarr_system = amarr_systems[0]
-                    SYSTEM_CONNECTIONS[system.solar_system_id].add(amarr_system.solar_system_id)
-                    SYSTEM_CONNECTIONS[amarr_system.solar_system_id].add(system.solar_system_id)
-        
-        # Log the connections for debugging
-        logger.info(f"Built mock connections for {len(SYSTEM_CONNECTIONS)} systems")
-        for system_id, connections in SYSTEM_CONNECTIONS.items():
-            system_name = SYSTEM_ID_TO_NAME.get(system_id, f"System {system_id}")
-            logger.debug(f"Mock connections for {system_name}: {len(connections)} connections")
+        logger.info(f"Populated names for {len(SYSTEM_ID_TO_NAME)} systems")
 
     async def determine_system_adjacency(self, systems: List[FWSystem]) -> List[FWSystem]:
         """
-        Determine the adjacency type for each faction warfare system.
+        Determine the adjacency type for each faction warfare system using NetworkX graph.
         
         Args:
             systems (List[FWSystem]): The list of faction warfare systems.
