@@ -8,6 +8,7 @@ import os
 import json
 import logging
 from typing import Dict, Any
+from pprint import pformat
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -17,6 +18,39 @@ logger = logging.getLogger(__name__)
 # Path to filtered solar systems data files
 AMA_MIN_FILE = "eve_wiggin/data/ama_min.pickle"
 CAL_GAL_FILE = "eve_wiggin/data/cal_gal.pickle"
+
+def dump_all_pickle_data(solar_systems: Dict[int, Dict[str, Any]], warzone_name: str):
+    """
+    Dump all information contained in the pickle file to the logs.
+    
+    Args:
+        solar_systems (Dict[int, Dict[str, Any]]): Dictionary of solar systems.
+        warzone_name (str): The name of the warzone.
+    """
+    logger.info(f"\n{'='*80}")
+    logger.info(f"COMPLETE DATA DUMP FOR {warzone_name}")
+    logger.info(f"{'='*80}")
+    
+    # Convert to list of dictionaries for easier reading
+    systems_list = []
+    for system_id, system_data in solar_systems.items():
+        system_copy = system_data.copy()
+        system_copy['system_id'] = system_id
+        systems_list.append(system_copy)
+    
+    # Sort by system name for easier reading
+    systems_list.sort(key=lambda x: x.get('name', ''))
+    
+    # Log the complete data
+    for i, system in enumerate(systems_list):
+        logger.info(f"\nSystem #{i+1}: {system.get('name', 'Unknown')} (ID: {system.get('system_id', 'Unknown')})")
+        # Format the system data for better readability
+        formatted_data = pformat(system, indent=2, width=100)
+        logger.info(formatted_data)
+    
+    logger.info(f"\n{'='*80}")
+    logger.info(f"END OF DATA DUMP FOR {warzone_name}")
+    logger.info(f"{'='*80}")
 
 def examine_pickle(file_path: str, warzone_name: str):
     """
@@ -88,6 +122,9 @@ def examine_pickle(file_path: str, warzone_name: str):
                 regions.add(region)
             
             logger.info(f"\nRegions in {warzone_name}: {', '.join(sorted(regions))}")
+            
+            # Dump all information contained in the pickle file
+            dump_all_pickle_data(solar_systems, warzone_name)
             
         else:
             logger.error(f"Solar systems file not found: {file_path}")
