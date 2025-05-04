@@ -309,6 +309,16 @@ class FWGraphBuilder:
         # Process all systems to find those adjacent to enemy territory
         frontlines_found = 0
         
+        # Log the total number of systems being processed
+        total_systems = G.number_of_nodes()
+        logger.info(f"Processing {total_systems} systems to find frontlines...")
+        
+        # Log faction counts for debugging
+        amarr_systems = sum(1 for _, data in G.nodes(data=True) if data.get("occupier_faction_id") == FactionID.AMARR_EMPIRE)
+        minmatar_systems = sum(1 for _, data in G.nodes(data=True) if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC)
+        neutral_systems = total_systems - amarr_systems - minmatar_systems
+        logger.info(f"System faction breakdown: {amarr_systems} Amarr, {minmatar_systems} Minmatar, {neutral_systems} neutral")
+        
         for system_id in G.nodes():
             # Skip if already marked as frontline
             if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
@@ -319,10 +329,12 @@ class FWGraphBuilder:
             
             # Skip systems with no faction
             if occupier_faction_id == 0:
+                logger.debug(f"Skipping {system_name} - no faction")
                 continue
             
             # Get adjacent systems
             adjacent_systems = list(G.neighbors(system_id))
+            logger.debug(f"System {system_name} has {len(adjacent_systems)} adjacent systems")
             
             # Check if any adjacent systems are controlled by the enemy faction
             for adjacent_id in adjacent_systems:
@@ -331,14 +343,19 @@ class FWGraphBuilder:
                 
                 # Skip systems with no faction
                 if adjacent_faction == 0:
+                    logger.debug(f"  Adjacent system {adjacent_name} has no faction, skipping")
                     continue
                 
                 # Check if this is an enemy system
                 is_enemy = False
                 if occupier_faction_id == FactionID.AMARR_EMPIRE and adjacent_faction == FactionID.MINMATAR_REPUBLIC:
                     is_enemy = True
+                    logger.debug(f"  Adjacent system {adjacent_name} is Minmatar (enemy to Amarr)")
                 elif occupier_faction_id == FactionID.MINMATAR_REPUBLIC and adjacent_faction == FactionID.AMARR_EMPIRE:
                     is_enemy = True
+                    logger.debug(f"  Adjacent system {adjacent_name} is Amarr (enemy to Minmatar)")
+                else:
+                    logger.debug(f"  Adjacent system {adjacent_name} has faction {adjacent_faction}, not an enemy to {occupier_faction_id}")
                 
                 if is_enemy:
                     # This system is adjacent to an enemy system, so it's a frontline
@@ -348,6 +365,45 @@ class FWGraphBuilder:
                     break
         
         logger.info(f"Found {frontlines_found} additional frontline systems based on adjacency to enemy territory")
+        
+        # If no frontlines were found, log more detailed information for debugging
+        if frontlines_found == 0:
+            logger.warning("No additional frontline systems found! Detailed system analysis:")
+            
+            # Check each system and log its neighbors with factions
+            for system_id in G.nodes():
+                system_name = G.nodes[system_id].get("solar_system_name", "")
+                occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
+                
+                # Skip systems with no faction
+                if occupier_faction_id == 0:
+                    continue
+                
+                # Get faction name for better readability
+                faction_name = "Unknown"
+                if occupier_faction_id == FactionID.AMARR_EMPIRE:
+                    faction_name = "Amarr"
+                elif occupier_faction_id == FactionID.MINMATAR_REPUBLIC:
+                    faction_name = "Minmatar"
+                
+                # Get adjacent systems
+                adjacent_systems = list(G.neighbors(system_id))
+                
+                # Log system and its neighbors
+                logger.info(f"System: {system_name} ({faction_name}) - {len(adjacent_systems)} neighbors")
+                
+                for adjacent_id in adjacent_systems:
+                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
+                    adjacent_faction_id = G.nodes[adjacent_id].get("occupier_faction_id", 0)
+                    
+                    # Get faction name for better readability
+                    adjacent_faction_name = "Neutral"
+                    if adjacent_faction_id == FactionID.AMARR_EMPIRE:
+                        adjacent_faction_name = "Amarr"
+                    elif adjacent_faction_id == FactionID.MINMATAR_REPUBLIC:
+                        adjacent_faction_name = "Minmatar"
+                    
+                    logger.info(f"  - Neighbor: {adjacent_name} ({adjacent_faction_name})")
     
     def _find_command_ops(self, G: nx.Graph) -> None:
         """
@@ -361,6 +417,10 @@ class FWGraphBuilder:
         # Process all systems to find those adjacent to frontlines of the same faction
         command_ops_found = 0
         
+        # Log the total number of systems being processed
+        total_systems = G.number_of_nodes()
+        logger.info(f"Processing {total_systems} systems to find command operations...")
+        
         for system_id in G.nodes():
             # Skip if already marked as frontline
             if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
@@ -371,10 +431,12 @@ class FWGraphBuilder:
             
             # Skip systems with no faction
             if occupier_faction_id == 0:
+                logger.debug(f"Skipping {system_name} - no faction")
                 continue
             
             # Get adjacent systems
             adjacent_systems = list(G.neighbors(system_id))
+            logger.debug(f"System {system_name} has {len(adjacent_systems)} adjacent systems")
             
             # Check if any adjacent systems are frontlines of the same faction
             for adjacent_id in adjacent_systems:
@@ -384,6 +446,7 @@ class FWGraphBuilder:
                 
                 # Skip systems with no faction
                 if adjacent_faction == 0:
+                    logger.debug(f"  Adjacent system {adjacent_name} has no faction, skipping")
                     continue
                 
                 # Check if this is a frontline system of the same faction
