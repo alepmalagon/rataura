@@ -4,8 +4,8 @@ ESI API client adapter for EVE Wiggin.
 
 import logging
 from typing import Dict, Any, List, Optional, Union
-# Replace the import from rataura with our mock implementation
-from eve_wiggin.api.mock_esi_client import ESIClient, get_esi_client as get_rataura_esi_client
+# Replace the import from mock implementation with our cached implementation
+from eve_wiggin.api.cached_esi_client import ESIClient, get_esi_client as get_rataura_esi_client
 
 # Configure logging
 logger = logging.getLogger(__name__)
