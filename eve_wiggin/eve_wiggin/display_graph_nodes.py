@@ -60,11 +60,11 @@ async def display_graph_nodes():
         
         # Count systems by faction and adjacency
         amarr_systems = sum(1 for _, data in graph.nodes(data=True) 
-                           if data.get("owner_faction_id") == FactionID.AMARR_EMPIRE)
+                           if data.get("occupier_faction_id") == FactionID.AMARR_EMPIRE)
         minmatar_systems = sum(1 for _, data in graph.nodes(data=True) 
-                              if data.get("owner_faction_id") == FactionID.MINMATAR_REPUBLIC)
+                              if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC)
         neutral_systems = sum(1 for _, data in graph.nodes(data=True) 
-                             if data.get("owner_faction_id") == 0)
+                             if data.get("occupier_faction_id") == 0)
         
         frontlines = sum(1 for _, data in graph.nodes(data=True) 
                         if data.get("adjacency") == SystemAdjacency.FRONTLINE)
@@ -86,8 +86,8 @@ async def display_graph_nodes():
         logger.info("=== DETAILED NODE DATA ===")
         for i, (node_id, data) in enumerate(nodes, 1):
             system_name = data.get("solar_system_name", f"Unknown-{node_id}")
-            owner_faction_id = data.get("owner_faction_id", 0)
-            owner_faction_name = FACTION_NAMES.get(owner_faction_id, "Unknown")
+            occupier_faction_id = data.get("occupier_faction_id", 0)
+            occupier_faction_name = FACTION_NAMES.get(occupier_faction_id, "Unknown")
             adjacency = data.get("adjacency", SystemAdjacency.REARGUARD)
             adjacency_name = ADJACENCY_NAMES.get(adjacency, "Unknown")
             
@@ -101,7 +101,7 @@ async def display_graph_nodes():
             formatted_data = {
                 "system_id": node_id,
                 "solar_system_name": system_name,
-                "owner_faction": owner_faction_name,
+                "occupier_faction": occupier_faction_name,
                 "adjacency": adjacency_name,
                 "victory_points": data.get("victory_points", 0),
                 "victory_points_threshold": data.get("victory_points_threshold", 0),
