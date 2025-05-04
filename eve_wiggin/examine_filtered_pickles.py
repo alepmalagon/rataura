@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Path to filtered solar systems data files
-AMA_MIN_FILE = "eve_wiggin/eve_wiggin/data/ama_min.pickle"
-CAL_GAL_FILE = "eve_wiggin/eve_wiggin/data/cal_gal.pickle"
+AMA_MIN_FILE = "eve_wiggin/data/ama_min.pickle"
+CAL_GAL_FILE = "eve_wiggin/data/cal_gal.pickle"
 
 def examine_pickle(file_path: str, warzone_name: str):
     """
@@ -32,6 +32,11 @@ def examine_pickle(file_path: str, warzone_name: str):
                 solar_systems = pickle.load(f)
             
             logger.info(f"Loaded {len(solar_systems)} solar systems from {file_path}")
+            
+            # Check if the dictionary is empty
+            if not solar_systems:
+                logger.warning(f"No systems found in {warzone_name}. The pickle file is empty.")
+                return
             
             # Get a sample system
             sample_id = next(iter(solar_systems))
@@ -105,4 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
