@@ -102,11 +102,13 @@ class FWGraphBuilder:
             # Create a new undirected graph
             G = nx.Graph()
             
-            # Add nodes to the graph
+            # Convert all keys in systems_data to strings for consistency
+            string_systems_data = {}
             for system_id, system_data in systems_data.items():
-                # Convert system_id to string for consistency
-                system_id = str(system_id)
-                
+                string_systems_data[str(system_id)] = system_data
+            
+            # Add nodes to the graph
+            for system_id, system_data in string_systems_data.items():
                 # Get system name
                 system_name = system_data.get('solar_system_name', f"Unknown-{system_id}")
                 
@@ -118,22 +120,20 @@ class FWGraphBuilder:
                 G.add_node(system_id, **system_data)
             
             # Add edges to the graph
-            for system_id, system_data in systems_data.items():
-                # Convert system_id to string for consistency
-                system_id = str(system_id)
-                
+            for system_id, system_data in string_systems_data.items():
                 # Get adjacent systems
                 adjacent_systems = system_data.get('adjacent', [])
                 
                 # Convert adjacent_systems to strings if they are integers
-                adjacent_systems = [str(adj_id) if isinstance(adj_id, int) else adj_id for adj_id in adjacent_systems]
+                adjacent_systems = [str(adj_id) for adj_id in adjacent_systems]
                 
                 for adj_id in adjacent_systems:
                     # Check if the adjacent system is in our data
-                    if adj_id in systems_data:
+                    if adj_id in string_systems_data:
                         # Add edge if it doesn't already exist
                         if not G.has_edge(system_id, adj_id):
                             G.add_edge(system_id, adj_id)
+                            logger.debug(f"Added edge between {self.system_id_to_name.get(system_id, system_id)} and {self.system_id_to_name.get(adj_id, adj_id)}")
             
             logger.info(f"Loaded base graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
             return G
