@@ -6,9 +6,10 @@ Configuration module for EVE Wiggin.
 try:
     # For Pydantic v2
     from pydantic_settings import BaseSettings
+    from pydantic import Field
 except ImportError:
     # Fallback for Pydantic v1
-    from pydantic import BaseSettings
+    from pydantic import BaseSettings, Field
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,10 @@ class Settings(BaseSettings):
     class Config:
         env_prefix = "EVE_WIGGIN_"
         env_file = ".env"
+        env_file_encoding = "utf-8"
+        # Make all fields optional to prevent validation errors
+        validate_assignment = False
+        extra = "ignore"
 
 
 settings = Settings()
