@@ -1,5 +1,5 @@
 """
-Faction Warfare adjacency detector using BFS approach.
+Faction Warfare adjacency detector using NetworkX graph.
 """
 
 import logging
@@ -7,10 +7,12 @@ import pickle
 from collections import deque
 from typing import Dict, List, Set, TypedDict, Optional, Any
 import os
+import networkx as nx
 
 from eve_wiggin.models.faction_warfare import (
     FWSystem, FactionID, SystemAdjacency
 )
+from eve_wiggin.graph_utils import get_warzone_graph
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ class SolarSystem(TypedDict):
 
 class AdjacencyDetector:
     """
-    Service for detecting faction warfare system adjacency using BFS.
+    Service for detecting faction warfare system adjacency using NetworkX graph.
     """
     
     # Singleton instance
@@ -60,28 +62,20 @@ class AdjacencyDetector:
         self.frontline_systems: Set[str] = set()
         self.command_ops_systems: Set[str] = set()
         
-        # Load solar systems data
-        self._load_solar_systems()
-    
-    def _load_solar_systems(self) -> None:
-        """
-        Load solar systems data from pickle file.
-        """
-        try:
-            if os.path.exists(SOLAR_SYSTEMS_FILE):
-                with open(SOLAR_SYSTEMS_FILE, 'rb') as f:
-                    self.solar_systems = pickle.load(f)
-                logger.info(f"Loaded {len(self.solar_systems)} solar systems from {SOLAR_SYSTEMS_FILE}")
-            else:
-                logger.warning(f"Solar systems file not found: {SOLAR_SYSTEMS_FILE}")
-                self.solar_systems = {}
-        except Exception as e:
-            logger.error(f"Error loading solar systems data: {e}", exc_info=True)
-            self.solar_systems = {}
+        # Get NetworkX graphs for both warzones
+        self.amarr_min_graph, self.amarr_min_name_to_index, self.amarr_min_systems = get_warzone_graph('amarr_minmatar')
+        self.cal_gal_graph, self.cal_gal_name_to_index, self.cal_gal_systems = get_warzone_graph('caldari_gallente')
+        
+        # Create a combined system data dictionary
+        self.combined_systems = {}
+        for system in self.amarr_min_systems + self.cal_gal_systems:
+            system_id = str(system.get('system_id', ''))
+            if system_id:
+                self.combined_systems[system_id] = system
     
     def determine_adjacency(self, fw_systems: List[FWSystem]) -> List[FWSystem]:
         """
-        Determine the adjacency type for each faction warfare system using BFS.
+        Determine the adjacency type for each faction warfare system using NetworkX graph.
         
         Args:
             fw_systems (List[FWSystem]): The list of faction warfare systems.
@@ -105,24 +99,11 @@ class AdjacencyDetector:
         # Mark permanent frontline systems
         self._mark_permanent_frontlines()
         
-        # Filter solar systems to only include FW systems
-        fw_solar_systems = {
-            system_id: system for system_id, system in self.solar_systems.items()
-            if system_id in self.fw_systems
-        }
-        
-        if not fw_solar_systems:
-            logger.warning("No faction warfare systems found in solar systems data")
-            return list(self.fw_systems.values())
-        
-        logger.info(f"Found {len(fw_solar_systems)} faction warfare systems in solar systems data")
-        logger.info(f"Amarr systems: {len(self.amarr_systems)}, Minmatar systems: {len(self.minmatar_systems)}")
-        
-        # Find frontline systems using BFS
-        self._find_frontlines_bfs(fw_solar_systems)
+        # Find frontline systems using NetworkX graph
+        self._find_frontlines_using_networkx()
         
         # Find command operations systems (one jump from frontlines)
-        self._find_command_ops(fw_solar_systems)
+        self._find_command_ops_using_networkx()
         
         logger.info(f"Adjacency determination complete: {len(self.frontline_systems)} frontlines, "
                    f"{len(self.command_ops_systems)} command ops, "
@@ -150,68 +131,91 @@ class AdjacencyDetector:
                 system.adjacency = SystemAdjacency.FRONTLINE
                 logger.debug(f"Marked {system_name} as permanent Minmatar frontline")
     
-    def _find_frontlines_bfs(self, fw_solar_systems: Dict[str, SolarSystem]) -> None:
+    def _find_frontlines_using_networkx(self) -> None:
         """
-        Find frontline systems using Breadth-First Search.
-        
-        Args:
-            fw_solar_systems (Dict[str, SolarSystem]): The dictionary of faction warfare solar systems.
+        Find frontline systems using the NetworkX graph.
         """
         # For each Amarr system, check if it's adjacent to a Minmatar system
         for amarr_id in self.amarr_systems:
-            if amarr_id not in fw_solar_systems:
+            if amarr_id not in self.combined_systems:
                 continue
-                
-            amarr_system = fw_solar_systems[amarr_id]
             
-            for adjacent_id in amarr_system["adjacent"]:
+            # Get adjacent systems from the NetworkX graph
+            adjacent_systems = self._get_adjacent_systems(amarr_id)
+            
+            for adjacent_id in adjacent_systems:
                 if adjacent_id in self.minmatar_systems:
                     # This Amarr system is adjacent to a Minmatar system, so it's a frontline
                     self.frontline_systems.add(amarr_id)
                     self.fw_systems[amarr_id].adjacency = SystemAdjacency.FRONTLINE
-                    logger.debug(f"Marked {amarr_system['name']} as Amarr frontline (adjacent to Minmatar)")
+                    system_name = self.fw_systems[amarr_id].solar_system_name
+                    logger.debug(f"Marked {system_name} as Amarr frontline (adjacent to Minmatar)")
                     break
         
         # For each Minmatar system, check if it's adjacent to an Amarr system
         for minmatar_id in self.minmatar_systems:
-            if minmatar_id not in fw_solar_systems:
+            if minmatar_id not in self.combined_systems:
                 continue
-                
-            minmatar_system = fw_solar_systems[minmatar_id]
             
-            for adjacent_id in minmatar_system["adjacent"]:
+            # Get adjacent systems from the NetworkX graph
+            adjacent_systems = self._get_adjacent_systems(minmatar_id)
+            
+            for adjacent_id in adjacent_systems:
                 if adjacent_id in self.amarr_systems:
                     # This Minmatar system is adjacent to an Amarr system, so it's a frontline
                     self.frontline_systems.add(minmatar_id)
                     self.fw_systems[minmatar_id].adjacency = SystemAdjacency.FRONTLINE
-                    logger.debug(f"Marked {minmatar_system['name']} as Minmatar frontline (adjacent to Amarr)")
+                    system_name = self.fw_systems[minmatar_id].solar_system_name
+                    logger.debug(f"Marked {system_name} as Minmatar frontline (adjacent to Amarr)")
                     break
     
-    def _find_command_ops(self, fw_solar_systems: Dict[str, SolarSystem]) -> None:
+    def _find_command_ops_using_networkx(self) -> None:
         """
-        Find command operations systems (one jump from frontlines).
-        
-        Args:
-            fw_solar_systems (Dict[str, SolarSystem]): The dictionary of faction warfare solar systems.
+        Find command operations systems (one jump from frontlines) using the NetworkX graph.
         """
         # For each frontline system, mark all adjacent systems of the same faction as command ops
         for frontline_id in self.frontline_systems:
-            if frontline_id not in fw_solar_systems:
+            if frontline_id not in self.combined_systems:
                 continue
-                
-            frontline_system = fw_solar_systems[frontline_id]
+            
             frontline_fw_system = self.fw_systems[frontline_id]
             frontline_faction = frontline_fw_system.owner_faction_id
             
-            for adjacent_id in frontline_system["adjacent"]:
+            # Get adjacent systems from the NetworkX graph
+            adjacent_systems = self._get_adjacent_systems(frontline_id)
+            
+            for adjacent_id in adjacent_systems:
                 if (adjacent_id in self.fw_systems and 
                     adjacent_id not in self.frontline_systems and
                     self.fw_systems[adjacent_id].owner_faction_id == frontline_faction):
                     # This system is adjacent to a frontline of the same faction, so it's a command ops
                     self.command_ops_systems.add(adjacent_id)
                     self.fw_systems[adjacent_id].adjacency = SystemAdjacency.COMMAND_OPERATIONS
-                    logger.debug(f"Marked {fw_solar_systems.get(adjacent_id, {}).get('name', adjacent_id)} "
-                               f"as command ops (adjacent to frontline {frontline_system['name']})")
+                    system_name = self.fw_systems[adjacent_id].solar_system_name
+                    logger.debug(f"Marked {system_name} as command ops (adjacent to frontline {frontline_fw_system.solar_system_name})")
+    
+    def _get_adjacent_systems(self, system_id: str) -> List[str]:
+        """
+        Get adjacent systems for a given system ID using the NetworkX graph.
+        
+        Args:
+            system_id (str): The system ID to get adjacent systems for.
+            
+        Returns:
+            List[str]: List of adjacent system IDs.
+        """
+        # Check if the system is in the combined systems dictionary
+        if system_id not in self.combined_systems:
+            return []
+        
+        # Get the adjacent systems from the system data
+        system_data = self.combined_systems[system_id]
+        adjacent_systems = system_data.get('adjacent', [])
+        
+        # Convert adjacent_systems to strings if they are integers
+        adjacent_systems = [str(adj_id) if isinstance(adj_id, int) else adj_id for adj_id in adjacent_systems]
+        
+        return adjacent_systems
 
 
 def get_adjacency_detector() -> AdjacencyDetector:
