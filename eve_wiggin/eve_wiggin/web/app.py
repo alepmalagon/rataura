@@ -84,8 +84,8 @@ async def analyze():
                 faction_id_str = str(faction_id)
                 
                 # Get faction stats from warzone_status
-                if faction_id_str in warzone_status["faction_stats"]:
-                    faction_stats[faction_id_str] = warzone_status["faction_stats"][faction_id_str]
+                if faction_id in warzone_status["faction_stats"]:
+                    faction_stats[faction_id_str] = warzone_status["faction_stats"][faction_id]
                 else:
                     # If faction stats not found, create empty stats
                     logger.warning(f"No faction stats found for faction ID {faction_id}")

@@ -141,21 +141,39 @@ class WebVisualizer:
         
         self.html_output.append('<div class="row">')
         
-        for faction_id, stats in faction_stats.items():
-            faction_id_int = int(faction_id)
-            faction_color = self.faction_colors.get(faction_id_int, "#FFFFFF")
-            faction_name = self.faction_names.get(faction_id_int, f"Faction {faction_id}")
+        for faction_id_str, stats in faction_stats.items():
+            # Convert faction_id to integer if it's a string
+            faction_id_int = int(faction_id_str) if isinstance(faction_id_str, str) else faction_id_str
             
+            # Get faction color and name
+            faction_color = self.faction_colors.get(faction_id_int, "#FFFFFF")
+            faction_name = self.faction_names.get(faction_id_int, f"Faction {faction_id_str}")
+            
+            # Create faction stats card
             self.html_output.append('<div class="col-md-6 mb-3">')
             self.html_output.append(f'<div class="card" style="border-left: 5px solid {faction_color};">')
             self.html_output.append('<div class="card-body">')
             self.html_output.append(f'<h5 class="card-title">{html.escape(faction_name)}</h5>')
             
+            # Display stats
             self.html_output.append('<ul class="list-group list-group-flush">')
-            self.html_output.append(f'<li class="list-group-item">Pilots: {stats.get("pilots", 0)}</li>')
-            self.html_output.append(f'<li class="list-group-item">Systems Controlled: {stats.get("systems_controlled", 0)}</li>')
-            self.html_output.append(f'<li class="list-group-item">Victory Points (yesterday): {stats.get("victory_points_yesterday", 0)}</li>')
-            self.html_output.append(f'<li class="list-group-item">Kills (yesterday): {stats.get("kills_yesterday", 0)}</li>')
+            
+            # Handle both dictionary and object access patterns
+            if isinstance(stats, dict):
+                pilots = stats.get("pilots", 0)
+                systems_controlled = stats.get("systems_controlled", 0)
+                victory_points_yesterday = stats.get("victory_points_yesterday", 0)
+                kills_yesterday = stats.get("kills_yesterday", 0)
+            else:
+                pilots = getattr(stats, "pilots", 0)
+                systems_controlled = getattr(stats, "systems_controlled", 0)
+                victory_points_yesterday = getattr(stats, "victory_points_yesterday", 0)
+                kills_yesterday = getattr(stats, "kills_yesterday", 0)
+            
+            self.html_output.append(f'<li class="list-group-item">Pilots: {pilots}</li>')
+            self.html_output.append(f'<li class="list-group-item">Systems Controlled: {systems_controlled}</li>')
+            self.html_output.append(f'<li class="list-group-item">Victory Points (yesterday): {victory_points_yesterday}</li>')
+            self.html_output.append(f'<li class="list-group-item">Kills (yesterday): {kills_yesterday}</li>')
             self.html_output.append('</ul>')
             
             self.html_output.append('</div>')
@@ -369,4 +387,3 @@ class WebVisualizer:
         
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
-
