@@ -162,8 +162,8 @@ class FWGraphBuilder:
                     contest_percent = (victory_points / victory_points_threshold) * 100
                 
                 # Determine if this is an Amarr/Minmatar system
-                owner_faction_id = raw_system["owner_faction_id"]
-                if owner_faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
+                occupier_faction_id = raw_system["occupier_faction_id"]
+                if occupier_faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
                     continue
                 
                 # Calculate advantage based on contested status and victory points
@@ -172,14 +172,14 @@ class FWGraphBuilder:
                 if raw_system["contested"] == "contested":
                     # If the system is contested, calculate advantage based on victory points
                     if victory_points_threshold > 0:
-                        # Positive advantage means the owner is winning
-                        # Negative advantage means the occupier is winning
+                        # Positive advantage means the occupier is winning
+                        # Negative advantage means the owner is winning
                         advantage = ((victory_points / victory_points_threshold) - 0.5) * 2
                 
                 # Create system data
                 fw_systems[system_id] = {
-                    "owner_faction_id": owner_faction_id,
-                    "occupier_faction_id": raw_system["occupier_faction_id"],
+                    "owner_faction_id": raw_system["owner_faction_id"],
+                    "occupier_faction_id": occupier_faction_id,
                     "contested": raw_system["contested"],
                     "victory_points": victory_points,
                     "victory_points_threshold": victory_points_threshold,
@@ -270,15 +270,15 @@ class FWGraphBuilder:
         """
         for system_id in G.nodes():
             system_name = G.nodes[system_id].get("solar_system_name", "")
-            owner_faction_id = G.nodes[system_id].get("owner_faction_id", 0)
+            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
             
             # Check if this is a permanent frontline for the controlling faction
-            if (owner_faction_id == FactionID.AMARR_EMPIRE and 
+            if (occupier_faction_id == FactionID.AMARR_EMPIRE and 
                 system_name in AMARR_PERMANENT_FRONTLINES):
                 G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
                 logger.debug(f"Marked {system_name} as permanent Amarr frontline")
                 
-            if (owner_faction_id == FactionID.MINMATAR_REPUBLIC and 
+            if (occupier_faction_id == FactionID.MINMATAR_REPUBLIC and 
                 system_name in MINMATAR_PERMANENT_FRONTLINES):
                 G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
                 logger.debug(f"Marked {system_name} as permanent Minmatar frontline")
@@ -292,10 +292,10 @@ class FWGraphBuilder:
         """
         # Get Amarr and Minmatar systems
         amarr_systems = [system_id for system_id, data in G.nodes(data=True) 
-                         if data.get("owner_faction_id") == FactionID.AMARR_EMPIRE]
+                         if data.get("occupier_faction_id") == FactionID.AMARR_EMPIRE]
         
         minmatar_systems = [system_id for system_id, data in G.nodes(data=True) 
-                            if data.get("owner_faction_id") == FactionID.MINMATAR_REPUBLIC]
+                            if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC]
         
         # For each Amarr system, check if it's adjacent to a Minmatar system
         for amarr_id in amarr_systems:
@@ -344,13 +344,13 @@ class FWGraphBuilder:
         
         # For each frontline system, mark all adjacent systems of the same faction as command ops
         for frontline_id in frontline_systems:
-            frontline_faction = G.nodes[frontline_id].get("owner_faction_id", 0)
+            frontline_faction = G.nodes[frontline_id].get("occupier_faction_id", 0)
             
             # Get adjacent systems
             adjacent_systems = list(G.neighbors(frontline_id))
             
             for adjacent_id in adjacent_systems:
-                adjacent_faction = G.nodes[adjacent_id].get("owner_faction_id", 0)
+                adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
                 adjacent_adjacency = G.nodes[adjacent_id].get("adjacency", "")
                 
                 if (adjacent_faction == frontline_faction and 
