@@ -1,0 +1,677 @@
+[
+  {
+    "solar_system_id": 30003000,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003001,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003002,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003003,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003004,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003005,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003006,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003007,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003008,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003009,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003010,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003011,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003012,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003013,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003014,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003015,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003016,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003017,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003018,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003019,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003020,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003021,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003022,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003023,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003024,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003025,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003026,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003027,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003028,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003029,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "uncontested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002500,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002501,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002502,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002503,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002504,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002505,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002506,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002507,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002508,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002509,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002510,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002511,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002512,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002513,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002514,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002515,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002516,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002517,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002518,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002519,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002520,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 0,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002521,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 1000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002522,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 2000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002523,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 3000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002524,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 4000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002525,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002526,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 6000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002527,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 7000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002528,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 8000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002529,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "uncontested",
+    "victory_points": 9000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003067,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003069,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003070,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002537,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002542,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002543,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002544,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002545,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30002546,
+    "owner_faction_id": 500003,
+    "occupier_faction_id": 500003,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003073,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003074,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003075,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003076,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003077,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  },
+  {
+    "solar_system_id": 30003078,
+    "owner_faction_id": 500002,
+    "occupier_faction_id": 500002,
+    "contested": "contested",
+    "victory_points": 5000,
+    "victory_points_threshold": 20000,
+    "advantage": 0.0
+  }
+]
