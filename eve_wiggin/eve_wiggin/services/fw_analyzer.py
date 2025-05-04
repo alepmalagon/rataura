@@ -179,7 +179,14 @@ class FWAnalyzer:
         if not SYSTEM_CONNECTIONS:
             logger.warning("Using mock system connections due to API limitations")
             self.build_mock_system_connections(systems)
-    
+        
+        # Debug: Print system connections
+        logger.debug("System connections:")
+        for system_id, connections in SYSTEM_CONNECTIONS.items():
+            system_name = SYSTEM_ID_TO_NAME.get(system_id, f"System {system_id}")
+            connection_names = [SYSTEM_ID_TO_NAME.get(conn_id, f"System {conn_id}") for conn_id in connections]
+            logger.debug(f"{system_name} ({system_id}) -> {connection_names}")
+
     def build_mock_system_connections(self, systems: List[FWSystem]) -> None:
         """
         Build mock system connections based on system IDs.
@@ -199,13 +206,52 @@ class FWAnalyzer:
         # Create mock connections based on system IDs
         # This is not accurate but provides a fallback
         for i, system in enumerate(systems):
-            SYSTEM_CONNECTIONS[system.solar_system_id] = set()
+            if system.solar_system_id not in SYSTEM_CONNECTIONS:
+                SYSTEM_CONNECTIONS[system.solar_system_id] = set()
             
             # Connect to a few nearby systems based on ID proximity
             for j, other_system in enumerate(systems):
                 if i != j and abs(i - j) <= 3:  # Connect to systems with nearby indices
                     SYSTEM_CONNECTIONS[system.solar_system_id].add(other_system.solar_system_id)
-    
+                    
+                    # Ensure the other system has a connections set
+                    if other_system.solar_system_id not in SYSTEM_CONNECTIONS:
+                        SYSTEM_CONNECTIONS[other_system.solar_system_id] = set()
+                    
+                    # Add reverse connection
+                    SYSTEM_CONNECTIONS[other_system.solar_system_id].add(system.solar_system_id)
+        
+        # Add connections for permanent frontline systems
+        # This ensures that permanent frontlines are connected to systems of the opposite faction
+        amarr_systems = [s for s in systems if s.owner_faction_id == FactionID.AMARR_EMPIRE]
+        minmatar_systems = [s for s in systems if s.owner_faction_id == FactionID.MINMATAR_REPUBLIC]
+        
+        # Connect Amarr permanent frontlines to Minmatar systems
+        for system in amarr_systems:
+            system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
+            if system_name in AMARR_PERMANENT_FRONTLINES:
+                # Connect to at least one Minmatar system
+                if minmatar_systems:
+                    minmatar_system = minmatar_systems[0]
+                    SYSTEM_CONNECTIONS[system.solar_system_id].add(minmatar_system.solar_system_id)
+                    SYSTEM_CONNECTIONS[minmatar_system.solar_system_id].add(system.solar_system_id)
+        
+        # Connect Minmatar permanent frontlines to Amarr systems
+        for system in minmatar_systems:
+            system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
+            if system_name in MINMATAR_PERMANENT_FRONTLINES:
+                # Connect to at least one Amarr system
+                if amarr_systems:
+                    amarr_system = amarr_systems[0]
+                    SYSTEM_CONNECTIONS[system.solar_system_id].add(amarr_system.solar_system_id)
+                    SYSTEM_CONNECTIONS[amarr_system.solar_system_id].add(system.solar_system_id)
+        
+        # Log the connections for debugging
+        logger.info(f"Built mock connections for {len(SYSTEM_CONNECTIONS)} systems")
+        for system_id, connections in SYSTEM_CONNECTIONS.items():
+            system_name = SYSTEM_ID_TO_NAME.get(system_id, f"System {system_id}")
+            logger.debug(f"Mock connections for {system_name}: {len(connections)} connections")
+
     async def determine_system_adjacency(self, systems: List[FWSystem]) -> List[FWSystem]:
         """
         Determine the adjacency type for each faction warfare system.
@@ -221,11 +267,16 @@ class FWAnalyzer:
         amarr_systems = [s for s in systems if s.owner_faction_id == FactionID.AMARR_EMPIRE]
         minmatar_systems = [s for s in systems if s.owner_faction_id == FactionID.MINMATAR_REPUBLIC]
         
+        logger.info(f"Determining adjacency for {len(systems)} systems")
+        logger.info(f"Found {len(amarr_systems)} Amarr systems and {len(minmatar_systems)} Minmatar systems")
+        logger.info(f"System connections: {len(SYSTEM_CONNECTIONS)} systems with connections")
+        
         # First, mark all systems as rearguard by default
         for system in systems:
             system.adjacency = SystemAdjacency.REARGUARD
         
         # Check for permanent frontline systems
+        frontline_count = 0
         for system in systems:
             system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, "")
             
@@ -233,14 +284,21 @@ class FWAnalyzer:
             if (system.owner_faction_id == FactionID.AMARR_EMPIRE and 
                 system_name in AMARR_PERMANENT_FRONTLINES):
                 system.adjacency = SystemAdjacency.FRONTLINE
+                frontline_count += 1
+                logger.debug(f"Marked {system_name} as frontline (Amarr permanent frontline)")
                 continue
                 
             if (system.owner_faction_id == FactionID.MINMATAR_REPUBLIC and 
                 system_name in MINMATAR_PERMANENT_FRONTLINES):
                 system.adjacency = SystemAdjacency.FRONTLINE
+                frontline_count += 1
+                logger.debug(f"Marked {system_name} as frontline (Minmatar permanent frontline)")
                 continue
         
+        logger.info(f"Marked {frontline_count} systems as frontlines based on permanent frontline list")
+        
         # Determine frontlines based on enemy adjacency
+        adjacency_frontline_count = 0
         for system in systems:
             # Skip if already marked as frontline
             if system.adjacency == SystemAdjacency.FRONTLINE:
@@ -260,9 +318,16 @@ class FWAnalyzer:
                         (system.owner_faction_id == FactionID.MINMATAR_REPUBLIC and 
                          connected_system.owner_faction_id == FactionID.AMARR_EMPIRE)):
                         system.adjacency = SystemAdjacency.FRONTLINE
+                        adjacency_frontline_count += 1
+                        system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, f"System {system.solar_system_id}")
+                        connected_name = SYSTEM_ID_TO_NAME.get(connected_id, f"System {connected_id}")
+                        logger.debug(f"Marked {system_name} as frontline (connected to enemy system {connected_name})")
                         break
         
-        # Determine command operations systems (two jumps from enemy territory)
+        logger.info(f"Marked {adjacency_frontline_count} additional systems as frontlines based on enemy adjacency")
+        
+        # Determine command operations systems (one jump from enemy territory)
+        command_ops_count = 0
         for system in systems:
             # Skip if already marked as frontline
             if system.adjacency == SystemAdjacency.FRONTLINE:
@@ -278,7 +343,20 @@ class FWAnalyzer:
                     
                     if connected_system.adjacency == SystemAdjacency.FRONTLINE:
                         system.adjacency = SystemAdjacency.COMMAND_OPERATIONS
+                        command_ops_count += 1
+                        system_name = SYSTEM_ID_TO_NAME.get(system.solar_system_id, f"System {system.solar_system_id}")
+                        connected_name = SYSTEM_ID_TO_NAME.get(connected_id, f"System {connected_id}")
+                        logger.debug(f"Marked {system_name} as command operations (connected to frontline system {connected_name})")
                         break
+        
+        logger.info(f"Marked {command_ops_count} systems as command operations")
+        
+        # Count final adjacency types
+        frontline_count = sum(1 for s in systems if s.adjacency == SystemAdjacency.FRONTLINE)
+        command_ops_count = sum(1 for s in systems if s.adjacency == SystemAdjacency.COMMAND_OPERATIONS)
+        rearguard_count = sum(1 for s in systems if s.adjacency == SystemAdjacency.REARGUARD)
+        
+        logger.info(f"Final adjacency counts: {frontline_count} frontlines, {command_ops_count} command operations, {rearguard_count} rearguards")
         
         return systems
     
