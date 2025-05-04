@@ -71,7 +71,7 @@ def convert_to_networkx(systems_data: List[Dict[str, Any]]) -> Tuple[nx.Graph, D
         
         # Add nodes to the graph
         for i, system in enumerate(systems_data):
-            system_name = system.get('name', f"Unknown-{system['system_id']}")
+            system_name = system.get('solar_system_name', f"Unknown-{system['system_id']}")
             system_name_to_index[system_name] = i
             
             # Add node with all system attributes
@@ -173,10 +173,9 @@ def analyze_graph(G: nx.Graph) -> Dict[str, Any]:
         {
             'node_id': node_id,
             'degree': degree,
-            'name': G.nodes[node_id].get('name', f"Unknown-{node_id}")
+            'name': G.nodes[node_id].get('solar_system_name', f"Unknown-{node_id}")
         }
         for node_id, degree in high_degree_nodes
     ]
     
     return metrics
-

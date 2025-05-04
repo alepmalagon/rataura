@@ -56,7 +56,7 @@ def main():
             
             # Draw labels for high degree nodes only
             high_degree_nodes = [node['node_id'] for node in metrics['high_degree_nodes']]
-            labels = {node_id: graph.nodes[node_id].get('name', f"Unknown-{node_id}") 
+            labels = {node_id: graph.nodes[node_id].get('solar_system_name', f"Unknown-{node_id}") 
                      for node_id in high_degree_nodes}
             nx.draw_networkx_labels(graph, pos, labels=labels, font_size=10)
             
@@ -81,4 +81,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
