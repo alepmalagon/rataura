@@ -25,6 +25,19 @@ class ESIClientAdapter:
         """
         self.esi_client = get_rataura_esi_client(access_token)
     
+    async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make a GET request to the ESI API.
+        
+        Args:
+            endpoint (str): The API endpoint to request.
+            params (Optional[Dict[str, Any]], optional): Query parameters for the request.
+        
+        Returns:
+            Dict[str, Any]: The response data.
+        """
+        return await self.esi_client.get(endpoint, params)
+    
     async def get_fw_systems(self) -> List[Dict[str, Any]]:
         """
         Get faction warfare solar systems.
