@@ -463,40 +463,59 @@ class WebVisualizer:
                 node["style"]["border-color"] = "#FF0000"
             
             nodes.append(node)
+        
+        # Create edges for all system connections from the pickle file
+        # This is a direct approach that creates edges for all adjacent systems
+        # without using BFS, which was only linking one system
+        processed_edges = set()  # Track processed edges to avoid duplicates
+        
+        for system_id, system_data in solar_systems.items():
+            # Skip if this system is not in the warzone or filtered out
+            if system_id not in system_map:
+                continue
+                
+            # Get the adjacent systems from the pickle file
+            adjacent_systems = system_data.get("adjacent", [])
             
-            # Create edges for adjacent systems
-            if system_id in solar_systems:
-                for adjacent_id in solar_systems[system_id]["adjacent"]:
-                    # Only create edges if both systems are in the warzone
-                    if adjacent_id in system_map:
-                        # Create a unique edge ID
-                        edge_id = f"{system_id}-{adjacent_id}"
-                        
-                        # Determine if this is a frontline connection
-                        is_frontline = False
-                        if (system_data["adjacency"] == SystemAdjacency.FRONTLINE and 
-                            system_map[adjacent_id]["system"]["adjacency"] == SystemAdjacency.FRONTLINE and
-                            system_data["owner_faction_id"] != system_map[adjacent_id]["system"]["owner_faction_id"]):
-                            is_frontline = True
-                        
-                        edge = {
-                            "data": {
-                                "id": edge_id,
-                                "source": system_id,
-                                "target": adjacent_id,
-                                "is_frontline": is_frontline
-                            },
-                            "style": {
-                                "width": 3 if is_frontline else 1,
-                                "line-color": "#FF0000" if is_frontline else "#999999",
-                                "line-style": "solid" if is_frontline else "solid"
-                            }
-                        }
-                        
-                        # Check if we already have this edge (in reverse direction)
-                        reverse_edge_id = f"{adjacent_id}-{system_id}"
-                        if not any(e["data"]["id"] == reverse_edge_id for e in edges):
-                            edges.append(edge)
+            # Create edges for each adjacent system
+            for adjacent_id in adjacent_systems:
+                # Skip if the adjacent system is not in the warzone or filtered out
+                if adjacent_id not in system_map:
+                    continue
+                
+                # Create a unique edge ID (sort IDs to avoid duplicates)
+                edge_pair = tuple(sorted([system_id, adjacent_id]))
+                if edge_pair in processed_edges:
+                    continue  # Skip if we've already processed this edge
+                
+                processed_edges.add(edge_pair)
+                
+                # Get system data for both systems
+                source_system = system_map[system_id]["system"]
+                target_system = system_map[adjacent_id]["system"]
+                
+                # Determine if this is a frontline connection
+                is_frontline = (
+                    source_system["adjacency"] == SystemAdjacency.FRONTLINE and 
+                    target_system["adjacency"] == SystemAdjacency.FRONTLINE and
+                    source_system["owner_faction_id"] != target_system["owner_faction_id"]
+                )
+                
+                edge = {
+                    "data": {
+                        "id": f"{system_id}-{adjacent_id}",
+                        "source": system_id,
+                        "target": adjacent_id,
+                        "is_frontline": is_frontline
+                    },
+                    "style": {
+                        "width": 3 if is_frontline else 1,
+                        "line-color": "#FF0000" if is_frontline else "#999999",
+                        "line-style": "solid" if is_frontline else "solid"
+                    }
+                }
+                
+                edges.append(edge)
         
         return {
             "nodes": nodes,
