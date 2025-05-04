@@ -5,31 +5,17 @@ Faction Warfare analyzer service.
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple, Set
+import networkx as nx
 
 from eve_wiggin.api.esi_client import get_esi_client
 from eve_wiggin.models.faction_warfare import (
     FWSystem, FWFactionStats, FWWarzone, FWWarzoneStatus,
     FactionID, Warzone, SystemStatus, SystemAdjacency
 )
-from eve_wiggin.services.adjacency_detector import get_adjacency_detector
-from eve_wiggin.graph_utils import get_warzone_graph
+from eve_wiggin.services.fw_graph_builder import get_fw_graph_builder
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-# Define permanent frontline systems
-AMARR_PERMANENT_FRONTLINES = {
-    "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"
-}
-
-MINMATAR_PERMANENT_FRONTLINES = {
-    "Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"
-}
-
-# System ID to name mapping (to be populated)
-SYSTEM_ID_TO_NAME = {}
-# System name to ID mapping (to be populated)
-SYSTEM_NAME_TO_ID = {}
 
 class FWAnalyzer:
     """
@@ -44,7 +30,7 @@ class FWAnalyzer:
             access_token (Optional[str], optional): The access token for authenticated requests.
         """
         self.esi_client = get_esi_client(access_token)
-        self.adjacency_detector = get_adjacency_detector()
+        self.graph_builder = get_fw_graph_builder(access_token)
         
         # Define faction names
         self.faction_names = {
@@ -58,128 +44,62 @@ class FWAnalyzer:
         
         # Define warzone factions
         self.warzone_factions = {
-            Warzone.CALDARI_GALLENTE: [FactionID.CALDARI_STATE, FactionID.GALLENTE_FEDERATION],
             Warzone.AMARR_MINMATAR: [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]
         }
+        
+        # Cache for the warzone graph
+        self._warzone_graph = None
+    
+    async def get_warzone_graph(self) -> nx.Graph:
+        """
+        Get the warzone graph, building it if necessary.
+        
+        Returns:
+            nx.Graph: The warzone graph.
+        """
+        if self._warzone_graph is None:
+            self._warzone_graph = await self.graph_builder.build_warzone_graph()
+        return self._warzone_graph
     
     async def get_fw_systems(self) -> List[FWSystem]:
         """
-        Get and process faction warfare systems.
+        Get and process faction warfare systems from the warzone graph.
         
         Returns:
             List[FWSystem]: A list of processed faction warfare systems.
         """
         try:
-            # Get faction warfare systems from ESI
-            raw_systems = await self.esi_client.get_fw_systems()
+            # Get the warzone graph
+            graph = await self.get_warzone_graph()
             
-            # Process systems
+            # Convert graph nodes to FWSystem objects
             systems = []
-            for raw_system in raw_systems:
-                # Calculate contest percentage
-                victory_points = raw_system["victory_points"]
-                victory_points_threshold = raw_system["victory_points_threshold"]
-                contest_percent = 0.0
-                if victory_points_threshold > 0:
-                    contest_percent = (victory_points / victory_points_threshold) * 100
-                
-                # Determine warzone
-                owner_faction_id = raw_system["owner_faction_id"]
-                warzone = None
-                if owner_faction_id in [FactionID.CALDARI_STATE, FactionID.GALLENTE_FEDERATION]:
-                    warzone = Warzone.CALDARI_GALLENTE
-                elif owner_faction_id in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
-                    warzone = Warzone.AMARR_MINMATAR
+            for system_id, data in graph.nodes(data=True):
+                # Skip systems not in faction warfare
+                if data.get("owner_faction_id", 0) == 0:
+                    continue
                 
                 # Create system model
                 system = FWSystem(
-                    solar_system_id=raw_system["solar_system_id"],
-                    owner_faction_id=owner_faction_id,
-                    occupier_faction_id=raw_system["occupier_faction_id"],
-                    contested=raw_system["contested"],
-                    victory_points=victory_points,
-                    victory_points_threshold=victory_points_threshold,
-                    advantage=raw_system.get("advantage", 0.0),
-                    contest_percent=contest_percent,
-                    warzone=warzone
+                    solar_system_id=int(system_id),
+                    solar_system_name=data.get("solar_system_name", f"System {system_id}"),
+                    owner_faction_id=data.get("owner_faction_id", 0),
+                    occupier_faction_id=data.get("occupier_faction_id", 0),
+                    contested=data.get("contested", SystemStatus.UNCONTESTED),
+                    victory_points=data.get("victory_points", 0),
+                    victory_points_threshold=data.get("victory_points_threshold", 0),
+                    advantage=data.get("advantage", 0.0),
+                    contest_percent=data.get("contest_percent", 0.0),
+                    adjacency=data.get("adjacency", SystemAdjacency.REARGUARD),
+                    warzone=Warzone.AMARR_MINMATAR
                 )
                 
                 systems.append(system)
-            
-            # Get system names from the NetworkX graph
-            await self.populate_system_names(systems)
-            
-            # Determine system adjacency
-            systems = await self.determine_system_adjacency(systems)
             
             return systems
         except Exception as e:
             logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
             raise
-    
-    async def populate_system_names(self, systems: List[FWSystem]) -> None:
-        """
-        Populate system names using the NetworkX graph data.
-        
-        Args:
-            systems (List[FWSystem]): The list of faction warfare systems.
-        """
-        global SYSTEM_ID_TO_NAME, SYSTEM_NAME_TO_ID
-        
-        # If names are already populated, skip
-        if SYSTEM_ID_TO_NAME:
-            return
-        
-        logger.info("Populating system names from NetworkX graph...")
-        
-        # Get the NetworkX graph for both warzones
-        amarr_min_graph, _, amarr_min_systems = get_warzone_graph('amarr_minmatar')
-        cal_gal_graph, _, cal_gal_systems = get_warzone_graph('caldari_gallente')
-        
-        # Combine systems data from both warzones
-        all_systems = amarr_min_systems + cal_gal_systems
-        
-        # Populate system names
-        for system_data in all_systems:
-            system_id = system_data.get('system_id')
-            system_name = system_data.get('solar_system_name', f"System {system_id}")
-            
-            if system_id and system_name:
-                SYSTEM_ID_TO_NAME[system_id] = system_name
-                SYSTEM_NAME_TO_ID[system_name] = system_id
-        
-        # Update system names in the FWSystem objects
-        for system in systems:
-            system_id = str(system.solar_system_id)
-            if system_id in SYSTEM_ID_TO_NAME:
-                system.solar_system_name = SYSTEM_ID_TO_NAME[system_id]
-            else:
-                # Try to get system info from ESI if not found in the graph
-                try:
-                    system_info = await self.esi_client.get_system(system.solar_system_id)
-                    system_name = system_info.get("name", f"System {system.solar_system_id}")
-                    system.solar_system_name = system_name
-                    
-                    SYSTEM_ID_TO_NAME[system_id] = system_name
-                    SYSTEM_NAME_TO_ID[system_name] = system_id
-                except Exception as e:
-                    logger.warning(f"Error getting system {system.solar_system_id} info: {e}")
-                    system.solar_system_name = f"System {system.solar_system_id}"
-        
-        logger.info(f"Populated names for {len(SYSTEM_ID_TO_NAME)} systems")
-
-    async def determine_system_adjacency(self, systems: List[FWSystem]) -> List[FWSystem]:
-        """
-        Determine the adjacency type for each faction warfare system using NetworkX graph.
-        
-        Args:
-            systems (List[FWSystem]): The list of faction warfare systems.
-        
-        Returns:
-            List[FWSystem]: The updated list of faction warfare systems with adjacency information.
-        """
-        # Use the adjacency detector to determine system adjacency
-        return self.adjacency_detector.determine_adjacency(systems)
 
     async def get_fw_faction_stats(self) -> Dict[int, FWFactionStats]:
         """
@@ -196,6 +116,10 @@ class FWAnalyzer:
             faction_stats = {}
             for raw_stat in raw_stats:
                 faction_id = raw_stat["faction_id"]
+                
+                # Only include Amarr and Minmatar factions
+                if faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
+                    continue
                 
                 # Create faction stats model
                 stats = FWFactionStats(
@@ -219,60 +143,49 @@ class FWAnalyzer:
     
     async def get_warzone_status(self) -> FWWarzoneStatus:
         """
-        Get the status of all faction warfare warzones.
+        Get the status of the Amarr/Minmatar faction warfare warzone.
         
         Returns:
-            FWWarzoneStatus: The status of all faction warfare warzones.
+            FWWarzoneStatus: The status of the faction warfare warzone.
         """
         try:
             # Get faction warfare systems and statistics
             systems = await self.get_fw_systems()
             faction_stats = await self.get_fw_faction_stats()
             
-            # Initialize warzones
-            warzones = {
-                Warzone.CALDARI_GALLENTE: FWWarzone(
-                    name="Caldari-Gallente Warzone",
-                    factions=[FactionID.CALDARI_STATE, FactionID.GALLENTE_FEDERATION],
-                    systems={FactionID.CALDARI_STATE: 0, FactionID.GALLENTE_FEDERATION: 0},
-                    contested={FactionID.CALDARI_STATE: 0, FactionID.GALLENTE_FEDERATION: 0}
-                ),
-                Warzone.AMARR_MINMATAR: FWWarzone(
-                    name="Amarr-Minmatar Warzone",
-                    factions=[FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC],
-                    systems={FactionID.AMARR_EMPIRE: 0, FactionID.MINMATAR_REPUBLIC: 0},
-                    contested={FactionID.AMARR_EMPIRE: 0, FactionID.MINMATAR_REPUBLIC: 0}
-                )
-            }
+            # Initialize warzone
+            warzone = FWWarzone(
+                name="Amarr-Minmatar Warzone",
+                factions=[FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC],
+                systems={FactionID.AMARR_EMPIRE: 0, FactionID.MINMATAR_REPUBLIC: 0},
+                contested={FactionID.AMARR_EMPIRE: 0, FactionID.MINMATAR_REPUBLIC: 0}
+            )
             
             # Count systems controlled by each faction
             for system in systems:
                 owner_faction_id = system.owner_faction_id
                 occupier_faction_id = system.occupier_faction_id
                 contested = system.contested != SystemStatus.UNCONTESTED
-                warzone_key = system.warzone
                 
-                if warzone_key and warzone_key in warzones:
-                    # Count systems by owner
-                    if owner_faction_id in warzones[warzone_key].systems:
-                        warzones[warzone_key].systems[owner_faction_id] += 1
-                    
-                    # Count contested systems by occupier
-                    if contested and occupier_faction_id in warzones[warzone_key].contested:
-                        warzones[warzone_key].contested[occupier_faction_id] += 1
+                # Count systems by owner
+                if owner_faction_id in warzone.systems:
+                    warzone.systems[owner_faction_id] += 1
+                
+                # Count contested systems by occupier
+                if contested and occupier_faction_id in warzone.contested:
+                    warzone.contested[occupier_faction_id] += 1
             
-            # Calculate total systems and control percentages for each warzone
-            for warzone_key, warzone in warzones.items():
-                total_systems = sum(warzone.systems.values())
-                warzone.total_systems = total_systems
-                
-                if total_systems > 0:
-                    for faction_id, count in warzone.systems.items():
-                        warzone.control_percentages[faction_id] = (count / total_systems) * 100
+            # Calculate total systems and control percentages
+            total_systems = sum(warzone.systems.values())
+            warzone.total_systems = total_systems
+            
+            if total_systems > 0:
+                for faction_id, count in warzone.systems.items():
+                    warzone.control_percentages[faction_id] = (count / total_systems) * 100
             
             # Create warzone status
             warzone_status = FWWarzoneStatus(
-                warzones=warzones,
+                warzones={Warzone.AMARR_MINMATAR: warzone},
                 faction_stats=faction_stats,
                 timestamp=datetime.utcnow().isoformat()
             )
@@ -293,58 +206,62 @@ class FWAnalyzer:
             Dict[str, Any]: Detailed information about the system.
         """
         try:
-            # Get faction warfare systems
-            systems = await self.get_fw_systems()
+            # Get the warzone graph
+            graph = await self.get_warzone_graph()
             
-            # Find the system in the list
-            fw_system = None
-            for system in systems:
-                if system.solar_system_id == system_id:
-                    fw_system = system
-                    break
+            # Convert system_id to string for graph lookup
+            system_id_str = str(system_id)
             
-            if not fw_system:
-                raise ValueError(f"System with ID {system_id} is not part of faction warfare")
+            # Check if the system is in the graph
+            if system_id_str not in graph:
+                raise ValueError(f"System with ID {system_id} is not part of the Amarr/Minmatar warzone")
             
-            # Get system details from ESI
-            system_info = await self.esi_client.get_system(system_id)
+            # Get system data from the graph
+            system_data = graph.nodes[system_id_str]
             
-            # Set system name
-            fw_system.solar_system_name = system_info.get("name", f"System ID {system_id}")
-            
-            # Get constellation and region info
-            constellation_id = system_info.get("constellation_id")
-            region_name = None
-            constellation_name = None
-            
-            if constellation_id:
-                try:
-                    constellation_info = await self.esi_client.get_constellation(constellation_id)
-                    constellation_name = constellation_info.get("name")
-                    
-                    region_id = constellation_info.get("region_id")
-                    if region_id:
-                        region_info = await self.esi_client.get_region(region_id)
-                        region_name = region_info.get("name")
-                except Exception as e:
-                    logger.error(f"Error getting constellation/region info: {e}")
+            # Create FWSystem object
+            fw_system = FWSystem(
+                solar_system_id=system_id,
+                solar_system_name=system_data.get("solar_system_name", f"System {system_id}"),
+                owner_faction_id=system_data.get("owner_faction_id", 0),
+                occupier_faction_id=system_data.get("occupier_faction_id", 0),
+                contested=system_data.get("contested", SystemStatus.UNCONTESTED),
+                victory_points=system_data.get("victory_points", 0),
+                victory_points_threshold=system_data.get("victory_points_threshold", 0),
+                advantage=system_data.get("advantage", 0.0),
+                contest_percent=system_data.get("contest_percent", 0.0),
+                adjacency=system_data.get("adjacency", SystemAdjacency.REARGUARD),
+                warzone=Warzone.AMARR_MINMATAR
+            )
             
             # Create result dictionary
             result = {
                 "system": fw_system.dict(),
                 "system_info": {
                     "name": fw_system.solar_system_name,
-                    "security_status": system_info.get("security_status"),
-                    "security_class": system_info.get("security_class"),
-                    "constellation_id": constellation_id,
-                    "constellation_name": constellation_name,
-                    "region_name": region_name
+                    "security_status": system_data.get("security_status"),
+                    "constellation_id": system_data.get("constellation_id"),
+                    "constellation_name": system_data.get("constellation_name"),
+                    "region_name": system_data.get("region_name")
                 },
                 "owner_faction_name": self.faction_names.get(fw_system.owner_faction_id),
-                "occupier_faction_name": self.faction_names.get(fw_system.occupier_faction_id)
+                "occupier_faction_name": self.faction_names.get(fw_system.occupier_faction_id),
+                "graph_data": {
+                    "degree": len(list(graph.neighbors(system_id_str))),
+                    "neighbors": [
+                        {
+                            "id": neighbor,
+                            "name": graph.nodes[neighbor].get("solar_system_name", f"System {neighbor}"),
+                            "owner": graph.nodes[neighbor].get("owner_faction_id", 0),
+                            "adjacency": graph.nodes[neighbor].get("adjacency", SystemAdjacency.REARGUARD)
+                        }
+                        for neighbor in graph.neighbors(system_id_str)
+                    ]
+                }
             }
             
             return result
         except Exception as e:
             logger.error(f"Error getting system details: {e}", exc_info=True)
             raise
+

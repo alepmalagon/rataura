@@ -31,6 +31,10 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 MAX_REQUESTS_PER_SECOND = 20
 REQUEST_WINDOW = 1.0  # 1 second window
 
+# Amarr/Minmatar faction IDs
+AMARR_FACTION_ID = 500003
+MINMATAR_FACTION_ID = 500002
+
 
 class RateLimiter:
     """
@@ -181,6 +185,7 @@ class Cache:
 class ESIClient:
     """
     Client for the EVE Online ESI API with caching and rate limiting.
+    Focused specifically on the Amarr/Minmatar warzone.
     """
     
     def __init__(self, access_token: Optional[str] = None):
@@ -206,7 +211,6 @@ class ESIClient:
             "/universe/systems/": 86400,  # 24 hours for system info (rarely changes)
             "/universe/constellations/": 86400,  # 24 hours for constellation info
             "/universe/regions/": 86400,  # 24 hours for region info
-            "/universe/stargates/": 86400,  # 24 hours for stargate info
         }
     
     def _get_ttl(self, endpoint: str) -> int:
@@ -324,29 +328,40 @@ class ESIClient:
     async def get_fw_systems(self) -> List[Dict[str, Any]]:
         """
         Get faction warfare solar systems.
+        Filters to only include Amarr/Minmatar systems.
         
         Returns:
             List[Dict[str, Any]]: A list of faction warfare solar systems.
         """
-        return await self.get("/fw/systems/")
-    
-    async def get_fw_wars(self) -> List[Dict[str, Any]]:
-        """
-        Get faction warfare wars.
+        all_systems = await self.get("/fw/systems/")
         
-        Returns:
-            List[Dict[str, Any]]: A list of faction warfare wars.
-        """
-        return await self.get("/fw/wars/")
+        # Filter to only include Amarr/Minmatar systems
+        amarr_minmatar_systems = [
+            system for system in all_systems
+            if system["owner_faction_id"] in [AMARR_FACTION_ID, MINMATAR_FACTION_ID]
+        ]
+        
+        logger.info(f"Filtered {len(amarr_minmatar_systems)} Amarr/Minmatar systems from {len(all_systems)} total systems")
+        return amarr_minmatar_systems
     
     async def get_fw_stats(self) -> List[Dict[str, Any]]:
         """
         Get faction warfare statistics.
+        Filters to only include Amarr/Minmatar factions.
         
         Returns:
             List[Dict[str, Any]]: A list of faction warfare statistics.
         """
-        return await self.get("/fw/stats/")
+        all_stats = await self.get("/fw/stats/")
+        
+        # Filter to only include Amarr/Minmatar factions
+        amarr_minmatar_stats = [
+            stat for stat in all_stats
+            if stat["faction_id"] in [AMARR_FACTION_ID, MINMATAR_FACTION_ID]
+        ]
+        
+        logger.info(f"Filtered {len(amarr_minmatar_stats)} Amarr/Minmatar factions from {len(all_stats)} total factions")
+        return amarr_minmatar_stats
     
     async def get_system(self, system_id: int) -> Dict[str, Any]:
         """
@@ -462,4 +477,3 @@ def get_esi_client(access_token: Optional[str] = None) -> ESIClient:
     if access_token:
         return ESIClient(access_token)
     return esi_client
-

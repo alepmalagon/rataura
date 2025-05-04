@@ -6,14 +6,16 @@ import os
 import pickle
 import logging
 import networkx as nx
+import asyncio
 from typing import Dict, List, Any, Optional, Tuple
+
+from eve_wiggin.services.fw_graph_builder import get_fw_graph_builder
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Define paths to filtered pickle files
 AMA_MIN_FILE = os.path.join(os.path.dirname(__file__), "data", "ama_min.pickle")
-CAL_GAL_FILE = os.path.join(os.path.dirname(__file__), "data", "cal_gal.pickle")
 
 def load_pickle_to_dict(pickle_file: str) -> List[Dict[str, Any]]:
     """
@@ -82,6 +84,9 @@ def convert_to_networkx(systems_data: List[Dict[str, Any]]) -> Tuple[nx.Graph, D
             # Get adjacent systems
             adjacent_systems = system.get('adjacent', [])
             
+            # Convert adjacent_systems to strings if they are integers
+            adjacent_systems = [str(adj_id) if isinstance(adj_id, int) else adj_id for adj_id in adjacent_systems]
+            
             for adj_id in adjacent_systems:
                 # Check if the adjacent system is in our data
                 if adj_id in system_id_to_index:
@@ -103,7 +108,7 @@ def get_warzone_graph(warzone: str = 'amarr_minmatar') -> Tuple[nx.Graph, Dict[s
     
     Args:
         warzone (str, optional): The warzone to get the graph for. 
-                                 Options: 'amarr_minmatar' or 'caldari_gallente'.
+                                 Only 'amarr_minmatar' is supported.
                                  Defaults to 'amarr_minmatar'.
         
     Returns:
@@ -112,17 +117,13 @@ def get_warzone_graph(warzone: str = 'amarr_minmatar') -> Tuple[nx.Graph, Dict[s
             - Mapping of system names to node IDs
             - Original list of system dictionaries
     """
-    # Select the appropriate pickle file
-    if warzone.lower() == 'amarr_minmatar':
-        pickle_file = AMA_MIN_FILE
-    elif warzone.lower() == 'caldari_gallente':
-        pickle_file = CAL_GAL_FILE
-    else:
-        logger.error(f"Invalid warzone: {warzone}. Must be 'amarr_minmatar' or 'caldari_gallente'.")
+    # Only support Amarr/Minmatar warzone
+    if warzone.lower() != 'amarr_minmatar':
+        logger.error(f"Invalid warzone: {warzone}. Only 'amarr_minmatar' is supported.")
         return nx.Graph(), {}, []
     
     # Load the pickle file
-    systems_data = load_pickle_to_dict(pickle_file)
+    systems_data = load_pickle_to_dict(AMA_MIN_FILE)
     
     # Convert to NetworkX graph
     graph, system_name_to_index = convert_to_networkx(systems_data)
@@ -179,3 +180,31 @@ def analyze_graph(G: nx.Graph) -> Dict[str, Any]:
     ]
     
     return metrics
+
+def get_enriched_warzone_graph() -> nx.Graph:
+    """
+    Get a NetworkX graph enriched with faction warfare data.
+    This is a synchronous wrapper around the asynchronous fw_graph_builder.
+    
+    Returns:
+        nx.Graph: The enriched NetworkX graph.
+    """
+    try:
+        # Get the graph builder
+        graph_builder = get_fw_graph_builder()
+        
+        # Create an event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the build_warzone_graph method
+        graph = loop.run_until_complete(graph_builder.build_warzone_graph())
+        
+        # Close the event loop
+        loop.close()
+        
+        return graph
+    except Exception as e:
+        logger.error(f"Error getting enriched warzone graph: {e}", exc_info=True)
+        return nx.Graph()
+
