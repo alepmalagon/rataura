@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 from flask import Flask, render_template, jsonify, request
 
 from eve_wiggin.api.fw_api import FWApi
-from eve_wiggin.models.faction_warfare import Warzone
+from eve_wiggin.models.faction_warfare import Warzone, FactionID
 from eve_wiggin.web.web_visualizer import WebVisualizer
 
 # Configure logging
@@ -80,7 +80,26 @@ async def analyze():
             # Display faction statistics
             faction_stats = {}
             for faction_id in warzone_data["factions"]:
-                faction_stats[str(faction_id)] = warzone_status["faction_stats"].get(str(faction_id), {})
+                # Convert faction_id to string for dictionary lookup
+                faction_id_str = str(faction_id)
+                
+                # Get faction stats from warzone_status
+                if faction_id_str in warzone_status["faction_stats"]:
+                    faction_stats[faction_id_str] = warzone_status["faction_stats"][faction_id_str]
+                else:
+                    # If faction stats not found, create empty stats
+                    logger.warning(f"No faction stats found for faction ID {faction_id}")
+                    faction_stats[faction_id_str] = {
+                        "faction_id": faction_id,
+                        "pilots": 0,
+                        "systems_controlled": 0,
+                        "kills_yesterday": 0,
+                        "kills_last_week": 0,
+                        "kills_total": 0,
+                        "victory_points_yesterday": 0,
+                        "victory_points_last_week": 0,
+                        "victory_points_total": 0
+                    }
             
             visualizer.display_faction_stats(faction_stats)
             
@@ -110,4 +129,3 @@ def run_app(host='0.0.0.0', port=5000, debug=False):
         debug (bool, optional): Whether to run in debug mode. Defaults to False.
     """
     app.run(host=host, port=port, debug=debug)
-
