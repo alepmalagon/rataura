@@ -3,6 +3,7 @@ Faction Warfare adjacency detector using NetworkX graph.
 """
 
 import logging
+import os
 from typing import Dict, List, Set, Optional, Any
 import networkx as nx
 
@@ -13,6 +14,9 @@ from eve_wiggin.services.fw_graph_builder import get_fw_graph_builder
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Define path to solar systems pickle file
+SOLAR_SYSTEMS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "solar_systems.pickle")
 
 class AdjacencyDetector:
     """
@@ -86,4 +90,3 @@ def get_adjacency_detector(access_token: Optional[str] = None) -> AdjacencyDetec
         AdjacencyDetector._instance = AdjacencyDetector(access_token)
         logger.info("Created new AdjacencyDetector instance")
     return AdjacencyDetector._instance
-
