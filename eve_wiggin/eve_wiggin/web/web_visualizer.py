@@ -387,3 +387,118 @@ class WebVisualizer:
         
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
+    
+    def generate_graph_data(self, warzone_systems: List[Dict[str, Any]], solar_systems: Dict[str, Any], filter_type: str = "all") -> Dict[str, Any]:
+        """
+        Generate graph data for visualization.
+        
+        Args:
+            warzone_systems (List[Dict[str, Any]]): The systems in the warzone.
+            solar_systems (Dict[str, Any]): The solar systems data from the pickle file.
+            filter_type (str, optional): The type of filter to apply. Defaults to "all".
+                Options: "all", "frontline", "contested"
+        
+        Returns:
+            Dict[str, Any]: The graph data for visualization.
+        """
+        nodes = []
+        edges = []
+        
+        # Create a mapping of system IDs to warzone system data
+        system_map = {}
+        for system in warzone_systems:
+            system_id = str(system["system"]["solar_system_id"])
+            system_map[system_id] = system
+        
+        # Process each system in the warzone
+        for system in warzone_systems:
+            system_data = system["system"]
+            system_info = system["system_info"]
+            system_id = str(system_data["solar_system_id"])
+            
+            # Apply filters
+            if filter_type == "frontline" and system_data["adjacency"] != SystemAdjacency.FRONTLINE:
+                continue
+            if filter_type == "contested" and system_data["contested"] != SystemStatus.CONTESTED:
+                continue
+            
+            # Get faction color
+            owner_faction_id = system_data["owner_faction_id"]
+            owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
+            
+            # Determine node shape based on adjacency
+            node_shape = "diamond"  # Default for rearguard
+            if system_data["adjacency"] == SystemAdjacency.FRONTLINE:
+                node_shape = "square"
+            elif system_data["adjacency"] == SystemAdjacency.COMMAND_OPERATIONS:
+                node_shape = "ellipse"
+            
+            # Create node
+            node = {
+                "data": {
+                    "id": system_id,
+                    "label": system_info["name"],
+                    "faction": owner_faction_id,
+                    "faction_name": self.faction_names.get(owner_faction_id, f"Faction {owner_faction_id}"),
+                    "adjacency": system_data["adjacency"],
+                    "contested": system_data["contested"],
+                    "contest_percent": system_data["contest_percent"],
+                    "region": system_info["region"],
+                    "security": system_info["security_status"]
+                },
+                "style": {
+                    "background-color": owner_color,
+                    "shape": node_shape,
+                    "width": 30,
+                    "height": 30,
+                    "border-width": 2,
+                    "border-color": "#000",
+                    "label": system_info["name"]
+                }
+            }
+            
+            # Add highlight for contested systems
+            if system_data["contested"] == SystemStatus.CONTESTED:
+                node["style"]["border-width"] = 4
+                node["style"]["border-color"] = "#FF0000"
+            
+            nodes.append(node)
+            
+            # Create edges for adjacent systems
+            if system_id in solar_systems:
+                for adjacent_id in solar_systems[system_id]["adjacent"]:
+                    # Only create edges if both systems are in the warzone
+                    if adjacent_id in system_map:
+                        # Create a unique edge ID
+                        edge_id = f"{system_id}-{adjacent_id}"
+                        
+                        # Determine if this is a frontline connection
+                        is_frontline = False
+                        if (system_data["adjacency"] == SystemAdjacency.FRONTLINE and 
+                            system_map[adjacent_id]["system"]["adjacency"] == SystemAdjacency.FRONTLINE and
+                            system_data["owner_faction_id"] != system_map[adjacent_id]["system"]["owner_faction_id"]):
+                            is_frontline = True
+                        
+                        edge = {
+                            "data": {
+                                "id": edge_id,
+                                "source": system_id,
+                                "target": adjacent_id,
+                                "is_frontline": is_frontline
+                            },
+                            "style": {
+                                "width": 3 if is_frontline else 1,
+                                "line-color": "#FF0000" if is_frontline else "#999999",
+                                "line-style": "solid" if is_frontline else "solid"
+                            }
+                        }
+                        
+                        # Check if we already have this edge (in reverse direction)
+                        reverse_edge_id = f"{adjacent_id}-{system_id}"
+                        if not any(e["data"]["id"] == reverse_edge_id for e in edges):
+                            edges.append(edge)
+        
+        return {
+            "nodes": nodes,
+            "edges": edges
+        }

@@ -11,6 +11,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- Cytoscape.js for graph visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -54,41 +57,122 @@
                             Click the button below to analyze the current state of the Amarr/Minmatar warzone.
                         </p>
                         
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="warzone-select">Warzone:</label>
-                                    <select id="warzone-select" class="form-select">
-                                        <option value="amarr_minmatar">Amarr/Minmatar</option>
-                                        <option value="caldari_gallente">Caldari/Gallente</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="sort-select">Sort Systems By:</label>
-                                    <select id="sort-select" class="form-select">
-                                        <option value="name">Name</option>
-                                        <option value="security">Security</option>
-                                        <option value="contest">Contest Percentage</option>
-                                        <option value="region">Region</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button id="analyze-btn" class="btn btn-primary btn-lg">
-                                <i class="fas fa-rocket me-2"></i>Strategic Analysis
-                            </button>
-                        </div>
-                        
-                        <div id="system-search" class="mt-4" style="display: none;">
-                            <div class="input-group">
-                                <input type="text" id="system-input" class="form-control" placeholder="Search for a specific system...">
-                                <button id="search-btn" class="btn btn-secondary">
-                                    <i class="fas fa-search"></i> Search
+                        <ul class="nav nav-tabs mb-3" id="analysisTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-content" type="button" role="tab" aria-controls="data-content" aria-selected="true">
+                                    <i class="fas fa-table me-1"></i> Data Analysis
                                 </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph-content" type="button" role="tab" aria-controls="graph-content" aria-selected="false">
+                                    <i class="fas fa-project-diagram me-1"></i> System Graph
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="analysisTabContent">
+                            <div class="tab-pane fade show active" id="data-content" role="tabpanel" aria-labelledby="data-tab">
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="warzone-select">Warzone:</label>
+                                            <select id="warzone-select" class="form-select">
+                                                <option value="amarr_minmatar">Amarr/Minmatar</option>
+                                                <option value="caldari_gallente">Caldari/Gallente</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="sort-select">Sort Systems By:</label>
+                                            <select id="sort-select" class="form-select">
+                                                <option value="name">Name</option>
+                                                <option value="security">Security</option>
+                                                <option value="contest">Contest Percentage</option>
+                                                <option value="region">Region</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button id="analyze-btn" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-rocket me-2"></i>Strategic Analysis
+                                    </button>
+                                </div>
+                                
+                                <div id="system-search" class="mt-4" style="display: none;">
+                                    <div class="input-group">
+                                        <input type="text" id="system-input" class="form-control" placeholder="Search for a specific system...">
+                                        <button id="search-btn" class="btn btn-secondary">
+                                            <i class="fas fa-search"></i> Search
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="graph-content" role="tabpanel" aria-labelledby="graph-tab">
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="graph-warzone-select">Warzone:</label>
+                                            <select id="graph-warzone-select" class="form-select">
+                                                <option value="amarr_minmatar">Amarr/Minmatar</option>
+                                                <option value="caldari_gallente">Caldari/Gallente</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="graph-filter-select">Filter Systems:</label>
+                                            <select id="graph-filter-select" class="form-select">
+                                                <option value="all">All Systems</option>
+                                                <option value="frontline">Frontline Only</option>
+                                                <option value="contested">Contested Only</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button id="generate-graph-btn" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-project-diagram me-2"></i>Generate System Graph
+                                    </button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div id="graph-container" style="height: 600px; border: 1px solid #ddd; border-radius: 4px;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="card mt-3">
+                                        <div class="card-header bg-secondary text-white">
+                                            <h5>Graph Legend</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h6>Node Colors:</h6>
+                                                    <ul class="list-group">
+                                                        <li class="list-group-item"><span class="badge bg-warning me-2">&nbsp;&nbsp;&nbsp;</span> Amarr Empire</li>
+                                                        <li class="list-group-item"><span class="badge bg-danger me-2">&nbsp;&nbsp;&nbsp;</span> Minmatar Republic</li>
+                                                        <li class="list-group-item"><span class="badge bg-primary me-2">&nbsp;&nbsp;&nbsp;</span> Caldari State</li>
+                                                        <li class="list-group-item"><span class="badge bg-success me-2">&nbsp;&nbsp;&nbsp;</span> Gallente Federation</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6>Node Shapes:</h6>
+                                                    <ul class="list-group">
+                                                        <li class="list-group-item"><i class="fas fa-square me-2"></i> Frontline System</li>
+                                                        <li class="list-group-item"><i class="fas fa-circle me-2"></i> Command Operations System</li>
+                                                        <li class="list-group-item"><i class="fas fa-diamond me-2"></i> Rearguard System</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
