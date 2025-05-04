@@ -91,6 +91,12 @@ async def display_graph_nodes():
             adjacency = data.get("adjacency", SystemAdjacency.REARGUARD)
             adjacency_name = ADJACENCY_NAMES.get(adjacency, "Unknown")
             
+            # Get neighbor system names
+            neighbor_names = []
+            for neighbor_id in graph.neighbors(node_id):
+                neighbor_name = graph.nodes[neighbor_id].get("solar_system_name", f"Unknown-{neighbor_id}")
+                neighbor_names.append(f"{neighbor_name} ({neighbor_id})")
+            
             # Format the node data for better readability
             formatted_data = {
                 "system_id": node_id,
@@ -102,7 +108,7 @@ async def display_graph_nodes():
                 "contest_percent": round(data.get("contest_percent", 0), 2),
                 "advantage": round(data.get("advantage", 0), 2),
                 "contested": data.get("contested", "uncontested"),
-                "neighbors": [graph.nodes[n].get("solar_system_name", n) for n in graph.neighbors(node_id)]
+                "neighbors": neighbor_names
             }
             
             # Log the node data
