@@ -8,6 +8,7 @@ which is not available through the ESI API.
 import logging
 import asyncio
 import time
+import os
 from typing import Dict, Any, List, Optional
 import re
 import json
@@ -28,6 +29,9 @@ logger = logging.getLogger(__name__)
 MINMATAR_FRONTLINES_URL = "https://www.eveonline.com/frontlines/minmatar"
 AMARR_FRONTLINES_URL = "https://www.eveonline.com/frontlines/amarr"
 
+# Debug folder for saving raw HTML
+DEBUG_FOLDER = "./eve_wiggin/debug_html"
+
 class WebScraperSelenium:
     """
     Scraper for EVE Online faction warfare data using Selenium with fallback to requests/BeautifulSoup.
@@ -43,6 +47,9 @@ class WebScraperSelenium:
         self._cache_ttl = 600  # 10 minutes
         self._lock = asyncio.Lock()
         self._use_fallback = False
+        
+        # Create debug folder if it doesn't exist
+        os.makedirs(DEBUG_FOLDER, exist_ok=True)
     
     async def get_advantage_data(self, force_refresh: bool = False) -> Dict[str, float]:
         """
@@ -119,6 +126,17 @@ class WebScraperSelenium:
             # Give the page a moment to fully render
             time.sleep(5)
             
+            # Save the page source to a file for debugging
+            page_source = driver.page_source
+            faction = "amarr" if "amarr" in url else "minmatar"
+            timestamp = int(time.time())
+            html_file_path = os.path.join(DEBUG_FOLDER, f"{faction}_page_source_{timestamp}.html")
+            
+            with open(html_file_path, "w", encoding="utf-8") as f:
+                f.write(page_source)
+            
+            logger.info(f"Saved page source to {html_file_path}")
+            
             # Find the warzone table
             warzone_table = driver.find_element(By.CLASS_NAME, "mantine-WarzoneTable-root")
             
@@ -187,6 +205,16 @@ class WebScraperSelenium:
             
             response = requests.get(url, headers=headers)
             response.raise_for_status()
+            
+            # Save the raw HTML to a file for debugging
+            faction = "amarr" if "amarr" in url else "minmatar"
+            timestamp = int(time.time())
+            html_file_path = os.path.join(DEBUG_FOLDER, f"{faction}_fallback_{timestamp}.html")
+            
+            with open(html_file_path, "w", encoding="utf-8") as f:
+                f.write(response.text)
+            
+            logger.info(f"Saved fallback HTML to {html_file_path}")
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
