@@ -58,6 +58,9 @@ class FWSystem(BaseModel):
     victory_points: int
     victory_points_threshold: int
     advantage: float = 0.0
+    amarr_advantage: float = 0.0
+    minmatar_advantage: float = 0.0
+    net_advantage: float = 0.0
     adjacency: Optional[str] = None
     
     # Calculated fields
@@ -104,4 +107,3 @@ class FWWarzoneStatus(BaseModel):
     warzones: Dict[str, FWWarzone]
     faction_stats: Dict[int, FWFactionStats] = {}
     timestamp: Optional[str] = None
-

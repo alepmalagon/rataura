@@ -215,13 +215,14 @@ class WebVisualizer:
         self.html_output.append('<tr>')
         self.html_output.append('<th>System</th>')
         self.html_output.append('<th>Region</th>')
-        self.html_output.append('<th>Owner</th>')
         self.html_output.append('<th>Occupier</th>')
         self.html_output.append('<th>Adjacency</th>')
         self.html_output.append('<th>Status</th>')
         self.html_output.append('<th>Victory Points</th>')
         self.html_output.append('<th>VP Threshold</th>')
-        self.html_output.append('<th>Advantage</th>')
+        self.html_output.append('<th>Amarr Adv.</th>')
+        self.html_output.append('<th>Minmatar Adv.</th>')
+        self.html_output.append('<th>Net Adv.</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
@@ -237,7 +238,7 @@ class WebVisualizer:
         # Display systems by region
         for region_name, region_systems in regions.items():
             # Add region header
-            self.html_output.append(f'<tr class="table-secondary"><td colspan="9"><strong>{html.escape(region_name)}</strong></td></tr>')
+            self.html_output.append(f'<tr class="table-secondary"><td colspan="10"><strong>{html.escape(region_name)}</strong></td></tr>')
             
             # Add systems in this region
             for system in region_systems:
@@ -313,7 +314,13 @@ class WebVisualizer:
                 # Victory points threshold
                 self.html_output.append(f'<td>{victory_points_threshold}</td>')
                 
-                # Advantage
+                # Amarr advantage
+                self.html_output.append(f'<td>{amarr_advantage:.2f}</td>')
+                
+                # Minmatar advantage
+                self.html_output.append(f'<td>{minmatar_advantage:.2f}</td>')
+                
+                # Net advantage
                 self.html_output.append(f'<td><span style="color: {advantage_color};">{net_advantage:.2f}</span></td>')
                 
                 self.html_output.append('</tr>')
