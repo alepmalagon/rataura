@@ -219,31 +219,25 @@ class WebVisualizer:
         self.html_output.append('<th>Occupier</th>')
         self.html_output.append('<th>Adjacency</th>')
         self.html_output.append('<th>Status</th>')
-        self.html_output.append('<th>VP</th>')
+        self.html_output.append('<th>Victory Points</th>')
         self.html_output.append('<th>VP Threshold</th>')
         self.html_output.append('<th>Advantage</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
         
-        # Group systems by region
-        systems_by_region = {}
+        # Group systems by region for better organization
+        regions = {}
         for system in sorted_systems:
-            region_name = system["system_info"].get("region_name", "Unknown Region")
-            if region_name not in systems_by_region:
-                systems_by_region[region_name] = []
-            systems_by_region[region_name].append(system)
+            region_name = system["system_info"]["region_name"] or "Unknown Region"
+            if region_name not in regions:
+                regions[region_name] = []
+            regions[region_name].append(system)
         
         # Display systems by region
-        for region_name, region_systems in systems_by_region.items():
+        for region_name, region_systems in regions.items():
             # Add region header
-            self.html_output.append('<tr class="table-secondary">')
-            self.html_output.append('<td colspan="9" class="font-weight-bold">')
-            # Add null check for region_name
-            safe_region_name = "Unknown Region" if region_name is None else html.escape(region_name)
-            self.html_output.append(f'{safe_region_name}')
-            self.html_output.append('</td>')
-            self.html_output.append('</tr>')
+            self.html_output.append(f'<tr class="table-secondary"><td colspan="9"><strong>{html.escape(region_name)}</strong></td></tr>')
             
             # Add systems in this region
             for system in region_systems:
@@ -254,40 +248,31 @@ class WebVisualizer:
                 system_name = system_info["name"]
                 
                 # Get owner and occupier faction names
-                owner_faction_name = system.get("owner_faction_name", "Unknown")
-                occupier_faction_name = system.get("occupier_faction_name", "Unknown")
+                owner_faction_id = system_data["owner_faction_id"]
+                occupier_faction_id = system_data["occupier_faction_id"]
+                owner_faction_name = system.get("owner_faction_name", f"Faction {owner_faction_id}")
+                occupier_faction_name = system.get("occupier_faction_name", f"Faction {occupier_faction_id}")
                 
-                # Get adjacency and status
+                # Get owner and occupier faction colors
+                owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
+                occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
+                
+                # Get adjacency type and badge color
                 adjacency = system_data["adjacency"]
-                status = system_data["contested"]
+                badge_color = self._get_adjacency_badge_color(adjacency)
                 
-                # Get victory points and threshold
+                # Get contested status
+                contested = system_data["contested"]
+                contest_percent = system_data["contest_percent"]
+                
+                # Get victory points
                 victory_points = system_data["victory_points"]
                 victory_points_threshold = system_data["victory_points_threshold"]
                 
-                # Calculate contest percentage
-                if victory_points_threshold > 0:
-                    contest_percent = (victory_points / victory_points_threshold) * 100
-                else:
-                    contest_percent = 0
-                
-                # Get advantage
+                # Get advantage data
                 amarr_advantage = system_data.get("amarr_advantage", 0.0)
                 minmatar_advantage = system_data.get("minmatar_advantage", 0.0)
                 net_advantage = system_data.get("net_advantage", 0.0)
-                
-                # Determine row color based on adjacency
-                row_class = ""
-                if adjacency == "frontline":
-                    row_class = "table-danger"
-                elif adjacency == "command_ops":
-                    row_class = "table-warning"
-                
-                # Determine badge color for adjacency
-                badge_color = self._get_adjacency_badge_color(adjacency)
-                
-                # Determine badge color for status
-                status_badge_color = "success" if status == "uncontested" else "danger"
                 
                 # Determine advantage color
                 if net_advantage > 0.1:
@@ -298,36 +283,29 @@ class WebVisualizer:
                     advantage_color = "#FFFFFF"  # White for neutral
                 
                 # Add system row
-                self.html_output.append(f'<tr class="{row_class}">')
+                self.html_output.append('<tr>')
                 
-                # System name with link to details
-                self.html_output.append('<td>')
-                self.html_output.append(f'<a href="#" class="system-link" data-system="{html.escape(system_name)}">{html.escape(system_name)}</a>')
-                self.html_output.append('</td>')
+                # System name
+                self.html_output.append(f'<td><a href="#" class="system-link" data-system="{html.escape(system_name)}">{html.escape(system_name)}</a></td>')
                 
                 # Region
-                region_name = system_info.get("region_name", "Unknown")
-                # Add null check for region_name
-                safe_region_name = "Unknown" if region_name is None else html.escape(region_name)
-                self.html_output.append(f'<td>{safe_region_name}</td>')
+                self.html_output.append(f'<td>{html.escape(system_info["region_name"] or "")}</td>')
                 
                 # Owner faction
-                self.html_output.append(f'<td>{html.escape(owner_faction_name)}</td>')
+                self.html_output.append(f'<td><span style="color: {owner_color};">{html.escape(owner_faction_name)}</span></td>')
                 
                 # Occupier faction
-                self.html_output.append(f'<td>{html.escape(occupier_faction_name)}</td>')
+                self.html_output.append(f'<td><span style="color: {occupier_color};">{html.escape(occupier_faction_name)}</span></td>')
                 
                 # Adjacency
-                self.html_output.append(f'<td><span class="badge bg-{badge_color}">{html.escape(adjacency)}</span></td>')
+                self.html_output.append(f'<td><span class="badge bg-{badge_color}">{adjacency}</span></td>')
                 
-                # Status with contest percentage
-                self.html_output.append('<td>')
-                if status == "contested":
-                    self.html_output.append(f'<span class="badge bg-{status_badge_color}">{html.escape(status)}</span>')
-                    self.html_output.append(f' <span class="text-danger">{contest_percent:.1f}%</span>')
+                # Contested status
+                if contested:
+                    contest_color = "danger" if contest_percent > 50 else "warning"
+                    self.html_output.append(f'<td><div class="progress" style="height: 20px;"><div class="progress-bar bg-{contest_color}" role="progressbar" style="width: {contest_percent}%;" aria-valuenow="{contest_percent}" aria-valuemin="0" aria-valuemax="100">{contest_percent:.1f}%</div></div></td>')
                 else:
-                    self.html_output.append(f'<span class="badge bg-{status_badge_color}">{html.escape(status)}</span>')
-                self.html_output.append('</td>')
+                    self.html_output.append('<td><span class="badge bg-success">Uncontested</span></td>')
                 
                 # Victory points
                 self.html_output.append(f'<td>{victory_points}</td>')
@@ -336,7 +314,7 @@ class WebVisualizer:
                 self.html_output.append(f'<td>{victory_points_threshold}</td>')
                 
                 # Advantage
-                self.html_output.append(f'<td style="color: {advantage_color};">{net_advantage:.2f}</td>')
+                self.html_output.append(f'<td><span style="color: {advantage_color};">{net_advantage:.2f}</span></td>')
                 
                 self.html_output.append('</tr>')
         
@@ -523,7 +501,7 @@ class WebVisualizer:
         else:
             # New format: solar_systems is a list of dictionaries
             for system in solar_systems:
-                system_id = str(system.get("system_id", ""))
+                system_id = str(system.get("solar_system_id", ""))
                 if system_id:
                     solar_system_map[system_id] = system
         
@@ -541,7 +519,9 @@ class WebVisualizer:
             
             # Get faction color
             owner_faction_id = system_data["owner_faction_id"]
+            occupier_faction_id = system_data["occupier_faction_id"]
             owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
+            occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
             
             # Determine node shape based on adjacency
             node_shape = "diamond"  # Default for rearguard
@@ -555,18 +535,20 @@ class WebVisualizer:
                 "data": {
                     "id": system_id,
                     "label": system_info["name"],
-                    "faction": owner_faction_id,
-                    "faction_name": self.faction_names.get(owner_faction_id, f"Faction {owner_faction_id}"),
+                    "owner_faction_id": owner_faction_id,
+                    "owner_faction_name": self.faction_names.get(owner_faction_id, f"Faction {owner_faction_id}"),
+                    "occupier_faction_id": occupier_faction_id,
+                    "occupier_faction_name": self.faction_names.get(occupier_faction_id, f"Faction {occupier_faction_id}"),
                     "adjacency": system_data["adjacency"],
                     "contested": system_data["contested"],
                     "contest_percent": system_data["contest_percent"],
                     "amarr_advantage": system_data.get("amarr_advantage", 0.0),
                     "minmatar_advantage": system_data.get("minmatar_advantage", 0.0),
                     "net_advantage": system_data.get("net_advantage", 0.0),
-                    "region": system_info["region_name"]
+                    "region_name": system_info["region_name"]
                 },
                 "style": {
-                    "background-color": owner_color,
+                    "background-color": occupier_color,  # Use occupier color for node
                     "shape": node_shape,
                     "width": 30,
                     "height": 30,
@@ -624,7 +606,7 @@ class WebVisualizer:
                 is_frontline = (
                     source_system["adjacency"] == SystemAdjacency.FRONTLINE and 
                     target_system["adjacency"] == SystemAdjacency.FRONTLINE and
-                    source_system["owner_faction_id"] != target_system["owner_faction_id"]
+                    source_system["occupier_faction_id"] != target_system["occupier_faction_id"]
                 )
                 
                 edge = {
