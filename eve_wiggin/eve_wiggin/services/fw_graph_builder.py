@@ -66,8 +66,15 @@ class FWGraphBuilder:
         # Create a new graph
         graph = nx.Graph()
         
-        # Create a dictionary with string keys for consistent handling
-        systems_dict = {str(system["solar_system_id"]): system for system in systems_data}
+        # Check if systems_data is a dictionary or a list
+        if isinstance(systems_data, dict):
+            # Convert dictionary to list of values for consistent processing
+            systems_list = list(systems_data.values())
+            # Create a dictionary with string keys for consistent handling
+            systems_dict = {str(system["solar_system_id"]): system for system in systems_list}
+        else:
+            # If it's already a list, use it directly
+            systems_dict = {str(system["solar_system_id"]): system for system in systems_data}
         
         # Add nodes to the graph
         for system_id, system in systems_dict.items():
