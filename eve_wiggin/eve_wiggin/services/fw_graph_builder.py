@@ -116,6 +116,19 @@ class FWGraphBuilder:
         
         return graph
     
+    async def build_warzone_graph(self, warzone: str = "amarr_minmatar") -> nx.Graph:
+        """
+        Build a NetworkX graph of faction warfare systems for a specific warzone.
+        This is an alias for build_graph for backward compatibility.
+        
+        Args:
+            warzone (str, optional): The warzone to build the graph for. Defaults to "amarr_minmatar".
+        
+        Returns:
+            nx.Graph: A NetworkX graph of faction warfare systems.
+        """
+        return await self.build_graph(warzone)
+    
     async def _enrich_graph_with_esi_data(self, graph: nx.Graph, faction_ids: List[int]) -> None:
         """
         Enrich the graph with data from the ESI API.
@@ -289,9 +302,12 @@ class FWGraphBuilder:
 # Create a global graph builder instance
 fw_graph_builder = FWGraphBuilder()
 
-def get_fw_graph_builder() -> FWGraphBuilder:
+def get_fw_graph_builder(access_token: Optional[str] = None) -> FWGraphBuilder:
     """
     Get a faction warfare graph builder instance.
+    
+    Args:
+        access_token (Optional[str], optional): The access token for authenticated requests.
     
     Returns:
         FWGraphBuilder: A faction warfare graph builder instance.
