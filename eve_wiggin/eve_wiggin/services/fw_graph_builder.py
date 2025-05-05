@@ -12,7 +12,7 @@ import networkx as nx
 from typing import Dict, List, Set, Any, Optional, Tuple
 
 from eve_wiggin.api.esi_client import get_esi_client
-from eve_wiggin.api.web_scraper import get_web_scraper
+from eve_wiggin.api.web_scraper_selenium import get_web_scraper_selenium
 from eve_wiggin.models.faction_warfare import (
     FactionID, SystemAdjacency, SystemStatus
 )
@@ -48,7 +48,8 @@ class FWGraphBuilder:
             access_token (Optional[str], optional): The access token for authenticated requests.
         """
         self.esi_client = get_esi_client(access_token)
-        self.web_scraper = get_web_scraper()
+        # Use the new Selenium-based web scraper
+        self.web_scraper = get_web_scraper_selenium()
         self.graph = nx.Graph()
         self.system_id_to_name = {}
         self.system_name_to_id = {}
