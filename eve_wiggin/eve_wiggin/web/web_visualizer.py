@@ -204,7 +204,7 @@ class WebVisualizer:
         elif sort_by == "contest":
             sorted_systems = sorted(systems, key=lambda s: s["system"]["contest_percent"], reverse=True)
         elif sort_by == "region":
-            sorted_systems = sorted(systems, key=lambda s: (s["system_info"]["region_name"], s["system_info"]["name"]))
+            sorted_systems = sorted(systems, key=lambda s: (s["system_info"]["region_name"] or "", s["system_info"]["name"]))
         else:
             sorted_systems = systems
         
@@ -221,102 +221,124 @@ class WebVisualizer:
         self.html_output.append('<th>Status</th>')
         self.html_output.append('<th>VP</th>')
         self.html_output.append('<th>VP Threshold</th>')
-        self.html_output.append('<th>Contest %</th>')
-        self.html_output.append('<th>Amarr Advantage</th>')
-        self.html_output.append('<th>Minmatar Advantage</th>')
-        self.html_output.append('<th>Net Advantage</th>')
+        self.html_output.append('<th>Advantage</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
         
+        # Group systems by region
+        systems_by_region = {}
         for system in sorted_systems:
-            system_info = system["system_info"]
-            system_data = system["system"]
-            
-            # Get system name and region
-            system_name = system_info["name"]
-            region_name = system_info["region_name"]
-            
-            # Get owner and occupier faction
-            owner_faction_id = system_data["owner_faction_id"]
-            owner_faction_name = system["owner_faction_name"]
-            owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
-            
-            occupier_faction_id = system_data["occupier_faction_id"]
-            occupier_faction_name = system["occupier_faction_name"]
-            occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
-            
-            # Get adjacency
-            adjacency = system_data["adjacency"]
-            adjacency_color = self.adjacency_colors.get(adjacency, "#FFFFFF")
-            
-            # Get status
-            status = system_data["contested"]
-            status_color = "danger" if status == SystemStatus.CONTESTED else "success"
-            
-            # Get victory points
-            vp = system_data["victory_points"]
-            vp_threshold = system_data["victory_points_threshold"]
-            contest_percent = system_data["contest_percent"]
-            
-            # Get advantage
-            amarr_advantage = system_data.get("amarr_advantage", 0.0)
-            minmatar_advantage = system_data.get("minmatar_advantage", 0.0)
-            net_advantage = system_data.get("net_advantage", 0.0)
-            
-            # Determine advantage colors
-            amarr_advantage_color = "#FFD700"  # Gold for Amarr
-            minmatar_advantage_color = "#FF4500"  # Red-Orange for Minmatar
-            
-            # Determine net advantage color
-            if net_advantage > 0.1:
-                net_advantage_color = "#FF4500"  # Red-Orange for Minmatar advantage
-            elif net_advantage < -0.1:
-                net_advantage_color = "#FFD700"  # Gold for Amarr advantage
-            else:
-                net_advantage_color = "#FFFFFF"  # White for neutral
-            
-            # Create table row
-            self.html_output.append('<tr>')
-            
-            # System name
-            self.html_output.append(f'<td><a href="#" onclick="showSystemDetails(\'{system_name}\'); return false;">{html.escape(system_name)}</a></td>')
-            
-            # Region
-            self.html_output.append(f'<td>{html.escape(region_name)}</td>')
-            
-            # Owner faction
-            self.html_output.append(f'<td><span style="color: {owner_color}">{html.escape(owner_faction_name)}</span></td>')
-            
-            # Occupier faction
-            self.html_output.append(f'<td><span style="color: {occupier_color}">{html.escape(occupier_faction_name)}</span></td>')
-            
-            # Adjacency
-            self.html_output.append(f'<td><span class="badge bg-{self._get_adjacency_badge_color(adjacency)}">{adjacency}</span></td>')
-            
-            # Status
-            self.html_output.append(f'<td><span class="badge bg-{status_color}">{status}</span></td>')
-            
-            # Victory points
-            self.html_output.append(f'<td>{vp}</td>')
-            
-            # Victory points threshold
-            self.html_output.append(f'<td>{vp_threshold}</td>')
-            
-            # Contest percentage
-            contest_color = self._get_contest_color(contest_percent)
-            self.html_output.append(f'<td><span style="color: {contest_color}">{contest_percent:.1f}%</span></td>')
-            
-            # Amarr advantage
-            self.html_output.append(f'<td><span style="color: {amarr_advantage_color}">{amarr_advantage:.2f}</span></td>')
-            
-            # Minmatar advantage
-            self.html_output.append(f'<td><span style="color: {minmatar_advantage_color}">{minmatar_advantage:.2f}</span></td>')
-            
-            # Net advantage
-            self.html_output.append(f'<td><span style="color: {net_advantage_color}">{net_advantage:.2f}</span></td>')
-            
+            region_name = system["system_info"].get("region_name", "Unknown Region")
+            if region_name not in systems_by_region:
+                systems_by_region[region_name] = []
+            systems_by_region[region_name].append(system)
+        
+        # Display systems by region
+        for region_name, region_systems in systems_by_region.items():
+            # Add region header
+            self.html_output.append('<tr class="table-secondary">')
+            self.html_output.append('<td colspan="9" class="font-weight-bold">')
+            # Add null check for region_name
+            safe_region_name = "Unknown Region" if region_name is None else html.escape(region_name)
+            self.html_output.append(f'{safe_region_name}')
+            self.html_output.append('</td>')
             self.html_output.append('</tr>')
+            
+            # Add systems in this region
+            for system in region_systems:
+                system_data = system["system"]
+                system_info = system["system_info"]
+                
+                # Get system name
+                system_name = system_info["name"]
+                
+                # Get owner and occupier faction names
+                owner_faction_name = system.get("owner_faction_name", "Unknown")
+                occupier_faction_name = system.get("occupier_faction_name", "Unknown")
+                
+                # Get adjacency and status
+                adjacency = system_data["adjacency"]
+                status = system_data["contested"]
+                
+                # Get victory points and threshold
+                victory_points = system_data["victory_points"]
+                victory_points_threshold = system_data["victory_points_threshold"]
+                
+                # Calculate contest percentage
+                if victory_points_threshold > 0:
+                    contest_percent = (victory_points / victory_points_threshold) * 100
+                else:
+                    contest_percent = 0
+                
+                # Get advantage
+                amarr_advantage = system_data.get("amarr_advantage", 0.0)
+                minmatar_advantage = system_data.get("minmatar_advantage", 0.0)
+                net_advantage = system_data.get("net_advantage", 0.0)
+                
+                # Determine row color based on adjacency
+                row_class = ""
+                if adjacency == "frontline":
+                    row_class = "table-danger"
+                elif adjacency == "command_ops":
+                    row_class = "table-warning"
+                
+                # Determine badge color for adjacency
+                badge_color = self._get_adjacency_badge_color(adjacency)
+                
+                # Determine badge color for status
+                status_badge_color = "success" if status == "uncontested" else "danger"
+                
+                # Determine advantage color
+                if net_advantage > 0.1:
+                    advantage_color = "#FF4500"  # Red-Orange for Minmatar advantage
+                elif net_advantage < -0.1:
+                    advantage_color = "#FFD700"  # Gold for Amarr advantage
+                else:
+                    advantage_color = "#FFFFFF"  # White for neutral
+                
+                # Add system row
+                self.html_output.append(f'<tr class="{row_class}">')
+                
+                # System name with link to details
+                self.html_output.append('<td>')
+                self.html_output.append(f'<a href="#" class="system-link" data-system="{html.escape(system_name)}">{html.escape(system_name)}</a>')
+                self.html_output.append('</td>')
+                
+                # Region
+                region_name = system_info.get("region_name", "Unknown")
+                # Add null check for region_name
+                safe_region_name = "Unknown" if region_name is None else html.escape(region_name)
+                self.html_output.append(f'<td>{safe_region_name}</td>')
+                
+                # Owner faction
+                self.html_output.append(f'<td>{html.escape(owner_faction_name)}</td>')
+                
+                # Occupier faction
+                self.html_output.append(f'<td>{html.escape(occupier_faction_name)}</td>')
+                
+                # Adjacency
+                self.html_output.append(f'<td><span class="badge bg-{badge_color}">{html.escape(adjacency)}</span></td>')
+                
+                # Status with contest percentage
+                self.html_output.append('<td>')
+                if status == "contested":
+                    self.html_output.append(f'<span class="badge bg-{status_badge_color}">{html.escape(status)}</span>')
+                    self.html_output.append(f' <span class="text-danger">{contest_percent:.1f}%</span>')
+                else:
+                    self.html_output.append(f'<span class="badge bg-{status_badge_color}">{html.escape(status)}</span>')
+                self.html_output.append('</td>')
+                
+                # Victory points
+                self.html_output.append(f'<td>{victory_points}</td>')
+                
+                # Victory points threshold
+                self.html_output.append(f'<td>{victory_points_threshold}</td>')
+                
+                # Advantage
+                self.html_output.append(f'<td style="color: {advantage_color};">{net_advantage:.2f}</td>')
+                
+                self.html_output.append('</tr>')
         
         self.html_output.append('</tbody>')
         self.html_output.append('</table>')
