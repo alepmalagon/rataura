@@ -9,8 +9,7 @@ from typing import Dict, List, Set, Tuple, Any, Optional
 import networkx as nx
 
 from eve_wiggin.api.cached_esi_client import get_cached_esi_client
-from eve_wiggin.api.web_scraper_selenium import get_web_scraper_selenium
-from eve_wiggin.api.puppeteer_scraper import get_puppeteer_scraper
+from eve_wiggin.api.direct_web_scraper import get_direct_web_scraper
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class FWGraphBuilder:
         Initialize the graph builder.
         """
         self.esi_client = get_cached_esi_client()
-        self.web_scraper = get_puppeteer_scraper()  # Use the Puppeteer scraper instead
+        self.web_scraper = get_direct_web_scraper()  # Use the direct web scraper instead
         
     async def build_graph(self, warzone: str = "amarr_minmatar") -> nx.Graph:
         """
