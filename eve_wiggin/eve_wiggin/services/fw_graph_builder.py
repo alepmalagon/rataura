@@ -20,8 +20,8 @@ CALDARI_FACTION_ID = 500001
 GALLENTE_FACTION_ID = 500004
 
 # Permanent frontline systems
-AMARR_PERMANENT_FRONTLINES = ["Arzad", "Kamela", "Huola", "Kourmonen"]
-MINMATAR_PERMANENT_FRONTLINES = ["Amamake", "Teonusude", "Eszur", "Vard"]
+AMARR_PERMANENT_FRONTLINES = ["Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"]
+MINMATAR_PERMANENT_FRONTLINES = [ "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"]
 
 # Pickle file paths
 AMA_MIN_PICKLE = os.path.join(os.path.dirname(__file__), "..", "data", "ama_min.pickle")
