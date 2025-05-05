@@ -8,8 +8,8 @@ import pickle
 from typing import Dict, List, Set, Tuple, Any, Optional
 import networkx as nx
 
-from eve_wiggin.api.cached_esi_client import get_cached_esi_client
-from eve_wiggin.api.direct_web_scraper import get_direct_web_scraper
+from eve_wiggin.api.esi_client import get_esi_client
+from eve_wiggin.api.warzone_api_client import get_warzone_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,8 @@ class FWGraphBuilder:
         """
         Initialize the graph builder.
         """
-        self.esi_client = get_cached_esi_client()
-        self.web_scraper = get_direct_web_scraper()  # Use the direct web scraper instead
+        self.esi_client = get_esi_client()
+        self.warzone_api_client = get_warzone_api_client()
         
     async def build_graph(self, warzone: str = "amarr_minmatar") -> nx.Graph:
         """
@@ -83,7 +83,9 @@ class FWGraphBuilder:
                 victory_points_threshold=0,
                 contested=False,
                 contest_percentage=0.0,
-                advantage=0.0,
+                amarr_advantage=0.0,
+                minmatar_advantage=0.0,
+                net_advantage=0.0,
                 adjacency="rearguard"  # Default adjacency
             )
             
@@ -106,7 +108,7 @@ class FWGraphBuilder:
         # Enrich the graph with ESI data
         await self._enrich_graph_with_esi_data(graph, faction_ids)
         
-        # Enrich the graph with advantage data from the web scraper
+        # Enrich the graph with advantage data from the warzone API
         await self._enrich_graph_with_advantage_data(graph)
         
         # Determine adjacency for each system
@@ -125,7 +127,7 @@ class FWGraphBuilder:
         logger.info("Enriching graph with ESI data...")
         
         # Get faction warfare systems from ESI
-        fw_systems = await self.esi_client.get_fw_systems(faction_ids)
+        fw_systems = await self.esi_client.get_fw_systems()
         
         # Create a dictionary for quick lookup
         fw_systems_dict = {str(system["solar_system_id"]): system for system in fw_systems}
@@ -153,34 +155,41 @@ class FWGraphBuilder:
     
     async def _enrich_graph_with_advantage_data(self, graph: nx.Graph) -> None:
         """
-        Enrich the graph with advantage data from the web scraper.
+        Enrich the graph with advantage data from the warzone API.
         
         Args:
             graph (nx.Graph): The graph to enrich.
         """
-        logger.info("Enriching graph with advantage data from web scraper...")
+        logger.info("Enriching graph with advantage data from warzone API...")
         
-        # Get advantage data from the web scraper
-        advantage_data = await self.web_scraper.get_advantage_data()
+        # Get advantage data from the warzone API
+        advantage_data = await self.warzone_api_client.get_system_advantage_data()
         
         # Update the graph nodes with advantage data
         for node in graph.nodes:
             system_name = graph.nodes[node]["name"]
             
             if system_name in advantage_data:
-                graph.nodes[node]["advantage"] = advantage_data[system_name]
-                logger.debug(f"Set advantage for {system_name} to {advantage_data[system_name]}")
+                system_advantage = advantage_data[system_name]
+                graph.nodes[node]["amarr_advantage"] = system_advantage["amarr"]
+                graph.nodes[node]["minmatar_advantage"] = system_advantage["minmatar"]
+                graph.nodes[node]["net_advantage"] = system_advantage["net_advantage"]
+                logger.debug(f"Set advantage for {system_name}: Amarr={system_advantage['amarr']}, Minmatar={system_advantage['minmatar']}, Net={system_advantage['net_advantage']}")
             else:
                 # If the system is not in the advantage data, calculate a default value
                 # based on the contest percentage
                 if graph.nodes[node]["contested"]:
                     # For contested systems, use a default value of 0.5 (neutral)
-                    graph.nodes[node]["advantage"] = 0.5
+                    graph.nodes[node]["amarr_advantage"] = 0.5
+                    graph.nodes[node]["minmatar_advantage"] = 0.5
+                    graph.nodes[node]["net_advantage"] = 0.0
                 else:
                     # For uncontested systems, set advantage to 0 (no advantage)
-                    graph.nodes[node]["advantage"] = 0.0
+                    graph.nodes[node]["amarr_advantage"] = 0.0
+                    graph.nodes[node]["minmatar_advantage"] = 0.0
+                    graph.nodes[node]["net_advantage"] = 0.0
                 
-                logger.debug(f"Using default advantage for {system_name}: {graph.nodes[node]['advantage']}")
+                logger.debug(f"Using default advantage for {system_name}: Amarr={graph.nodes[node]['amarr_advantage']}, Minmatar={graph.nodes[node]['minmatar_advantage']}, Net={graph.nodes[node]['net_advantage']}")
     
     def _determine_adjacency(self, graph: nx.Graph) -> None:
         """
