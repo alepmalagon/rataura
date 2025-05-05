@@ -200,15 +200,14 @@ class FWGraphBuilder:
         
         # Update the graph nodes with advantage data
         for node in graph.nodes:
-            system_name = graph.nodes[node]["solar_system_name"]
-            
-            if system_name in advantage_data:
-                system_advantage = advantage_data[system_name]
+            # Use the node ID (system ID) directly to look up advantage data
+            if node in advantage_data:
+                system_advantage = advantage_data[node]
                 # Update node attributes - SOURCE: EVE Online API warzone/status
                 graph.nodes[node]["amarr_advantage"] = system_advantage["amarr"]
                 graph.nodes[node]["minmatar_advantage"] = system_advantage["minmatar"]
                 graph.nodes[node]["net_advantage"] = system_advantage["net_advantage"]
-                logger.debug(f"Set advantage for {system_name}: Amarr={system_advantage['amarr']}, Minmatar={system_advantage['minmatar']}, Net={system_advantage['net_advantage']}")
+                logger.debug(f"Set advantage for {graph.nodes[node]['solar_system_name']}: Amarr={system_advantage['amarr']}, Minmatar={system_advantage['minmatar']}, Net={system_advantage['net_advantage']}")
             else:
                 # If the system is not in the advantage data, calculate a default value
                 # based on the contest percentage
@@ -223,7 +222,7 @@ class FWGraphBuilder:
                     graph.nodes[node]["minmatar_advantage"] = 0.0
                     graph.nodes[node]["net_advantage"] = 0.0
                 
-                logger.debug(f"Using default advantage for {system_name}: Amarr={graph.nodes[node]['amarr_advantage']}, Minmatar={graph.nodes[node]['minmatar_advantage']}, Net={graph.nodes[node]['net_advantage']}")
+                logger.debug(f"Using default advantage for {graph.nodes[node]['solar_system_name']}: Amarr={graph.nodes[node]['amarr_advantage']}, Minmatar={graph.nodes[node]['minmatar_advantage']}, Net={graph.nodes[node]['net_advantage']}")
     
     def _determine_adjacency(self, graph: nx.Graph) -> None:
         """
