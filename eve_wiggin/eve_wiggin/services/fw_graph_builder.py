@@ -12,6 +12,7 @@ import networkx as nx
 from typing import Dict, List, Set, Any, Optional, Tuple
 
 from eve_wiggin.api.esi_client import get_esi_client
+from eve_wiggin.api.web_scraper import get_web_scraper
 from eve_wiggin.models.faction_warfare import (
     FactionID, SystemAdjacency, SystemStatus
 )
@@ -47,6 +48,7 @@ class FWGraphBuilder:
             access_token (Optional[str], optional): The access token for authenticated requests.
         """
         self.esi_client = get_esi_client(access_token)
+        self.web_scraper = get_web_scraper()
         self.graph = nx.Graph()
         self.system_id_to_name = {}
         self.system_name_to_id = {}
@@ -67,12 +69,16 @@ class FWGraphBuilder:
             logger.info("Step 2: Getting faction warfare systems from ESI API...")
             fw_systems = await self._get_fw_systems()
             
-            # Step 3: Enrich the graph with faction warfare data
-            logger.info("Step 3: Enriching graph with faction warfare data...")
-            self._enrich_graph_with_fw_data(base_graph, fw_systems)
+            # Step 3: Get advantage data from EVE Online website
+            logger.info("Step 3: Getting advantage data from EVE Online website...")
+            advantage_data = await self._get_advantage_data()
             
-            # Step 4: Determine system adjacency (frontline, command ops, rearguard)
-            logger.info("Step 4: Determining system adjacency (frontline, command ops, rearguard)...")
+            # Step 4: Enrich the graph with faction warfare data
+            logger.info("Step 4: Enriching graph with faction warfare data...")
+            self._enrich_graph_with_fw_data(base_graph, fw_systems, advantage_data)
+            
+            # Step 5: Determine system adjacency (frontline, command ops, rearguard)
+            logger.info("Step 5: Determining system adjacency (frontline, command ops, rearguard)...")
             self._determine_system_adjacency(base_graph)
             
             logger.info(f"Built warzone graph with {base_graph.number_of_nodes()} nodes and {base_graph.number_of_edges()} edges")
@@ -170,24 +176,14 @@ class FWGraphBuilder:
                 if occupier_faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
                     continue
                 
-                # Calculate advantage based on contested status and victory points
-                # Advantage represents which faction has the upper hand in the system
-                advantage = 0.0
-                if raw_system["contested"] == "contested":
-                    # If the system is contested, calculate advantage based on victory points
-                    if victory_points_threshold > 0:
-                        # Positive advantage means the occupier is winning
-                        # Negative advantage means the owner is winning
-                        advantage = ((victory_points / victory_points_threshold) - 0.5) * 2
-                
-                # Create system data
+                # Create system data (without advantage - will be added from web scraper)
                 fw_systems[system_id] = {
                     "owner_faction_id": raw_system["owner_faction_id"],
                     "occupier_faction_id": occupier_faction_id,
                     "contested": raw_system["contested"],
                     "victory_points": victory_points,
                     "victory_points_threshold": victory_points_threshold,
-                    "advantage": advantage,
+                    "advantage": 0.0,  # Default value, will be updated with web scraper data
                     "contest_percent": contest_percent
                 }
             
@@ -198,18 +194,44 @@ class FWGraphBuilder:
             logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
             return {}
     
-    def _enrich_graph_with_fw_data(self, G: nx.Graph, fw_systems: Dict[str, Dict[str, Any]]) -> None:
+    async def _get_advantage_data(self) -> Dict[str, float]:
+        """
+        Get advantage data for faction warfare systems from the EVE Online website.
+        
+        Returns:
+            Dict[str, float]: Dictionary mapping system names to advantage values.
+        """
+        try:
+            # Get advantage data from web scraper
+            advantage_data = await self.web_scraper.get_advantage_data()
+            logger.info(f"Got advantage data for {len(advantage_data)} systems from EVE Online website")
+            return advantage_data
+        except Exception as e:
+            logger.error(f"Error getting advantage data: {e}", exc_info=True)
+            return {}
+    
+    def _enrich_graph_with_fw_data(self, G: nx.Graph, fw_systems: Dict[str, Dict[str, Any]], 
+                                  advantage_data: Dict[str, float]) -> None:
         """
         Enrich the graph with faction warfare data.
         
         Args:
             G (nx.Graph): The NetworkX graph to enrich.
             fw_systems (Dict[str, Dict[str, Any]]): Dictionary mapping system IDs to faction warfare data.
+            advantage_data (Dict[str, float]): Dictionary mapping system names to advantage values.
         """
         try:
             # Add faction warfare data to nodes
             for system_id, fw_data in fw_systems.items():
                 if system_id in G:
+                    # Get system name for advantage lookup
+                    system_name = G.nodes[system_id].get("solar_system_name", "")
+                    
+                    # Update advantage from web scraper data if available
+                    if system_name in advantage_data:
+                        fw_data["advantage"] = advantage_data[system_name]
+                        logger.debug(f"Updated advantage for {system_name} to {fw_data['advantage']} from web scraper")
+                    
                     # Update node attributes with faction warfare data
                     nx.set_node_attributes(G, {system_id: fw_data})
             
