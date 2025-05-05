@@ -37,4 +37,3 @@ npm install puppeteer
 
 echo "Installation complete!"
 echo "You can now use the Puppeteer-based web scraper to fetch EVE Online faction warfare data."
-
