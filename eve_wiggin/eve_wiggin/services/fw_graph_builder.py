@@ -78,22 +78,35 @@ class FWGraphBuilder:
         
         # Add nodes to the graph - SOURCE: ama_min.pickle for system name, neighbors, region
         for system_id, system in systems_dict.items():
+            # Extract data from pickle file
+            solar_system_name = system.get("solar_system_name", f"System {system_id}")
+            region_name = system.get("region_name", "Unknown Region")
+            constellation_name = system.get("constellation_name", "Unknown Constellation")
+            solar_system_id = system.get("solar_system_id", system_id)
+            
             graph.add_node(
                 system_id,
-                name=system["solar_system_name"],  # From pickle
-                region=system["region_name"],      # From pickle
-                constellation=system["constellation_name"],  # From pickle
-                system_id=system["solar_system_id"],  # From pickle
+                # Data from pickle file (ama_min.pickle)
+                solar_system_name=solar_system_name,  # From pickle
+                region_name=region_name,      # From pickle
+                constellation_name=constellation_name,  # From pickle
+                solar_system_id=solar_system_id,  # From pickle
+                
+                # Data to be populated from ESI API
                 owner_faction_id=None,  # Will be populated from ESI data
                 occupier_faction_id=None,  # Will be populated from ESI data
                 victory_points=0,  # Will be populated from ESI data
                 victory_points_threshold=0,  # Will be populated from ESI data
                 contested=False,  # Will be populated from ESI data
                 contest_percentage=0.0,  # Will be populated from ESI data
+                
+                # Data to be populated from warzone API
                 amarr_advantage=0.0,  # Will be populated from warzone API
                 minmatar_advantage=0.0,  # Will be populated from warzone API
                 net_advantage=0.0,  # Will be populated from warzone API
-                adjacency="rearguard"  # Default adjacency
+                
+                # Default adjacency
+                adjacency="rearguard"  # Will be determined based on graph analysis
             )
             
             # Add edges to the graph - SOURCE: ama_min.pickle for system neighbors
@@ -102,7 +115,7 @@ class FWGraphBuilder:
                 adjacent_id = str(adjacent_id)
                 if adjacent_id in systems_dict:
                     graph.add_edge(system_id, adjacent_id)
-                    logger.debug(f"Added edge between {system['solar_system_name']} and {systems_dict[adjacent_id]['solar_system_name']}")
+                    logger.debug(f"Added edge between {solar_system_name} and {systems_dict[adjacent_id].get('solar_system_name', f'System {adjacent_id}')}")
         
         # Log the number of nodes and edges
         logger.info(f"Created graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
@@ -110,7 +123,7 @@ class FWGraphBuilder:
         # Check if any nodes have no adjacent systems
         for node in graph.nodes:
             neighbors = list(graph.neighbors(node))
-            logger.debug(f"System {graph.nodes[node]['name']} has {len(neighbors)} adjacent systems")
+            logger.debug(f"System {graph.nodes[node]['solar_system_name']} has {len(neighbors)} adjacent systems")
         
         # Enrich the graph with ESI data - SOURCE: ESI API /fw/systems/ endpoint
         await self._enrich_graph_with_esi_data(graph, faction_ids)
@@ -169,9 +182,9 @@ class FWGraphBuilder:
                     contest_percentage = fw_system["victory_points"] / fw_system["victory_points_threshold"] * 100
                     graph.nodes[node]["contest_percentage"] = contest_percentage
                 
-                logger.debug(f"Enriched {graph.nodes[node]['name']} with ESI data")
+                logger.debug(f"Enriched {graph.nodes[node]['solar_system_name']} with ESI data")
             else:
-                logger.warning(f"System {graph.nodes[node]['name']} (ID: {node}) not found in ESI data")
+                logger.warning(f"System {graph.nodes[node]['solar_system_name']} (ID: {node}) not found in ESI data")
     
     async def _enrich_graph_with_advantage_data(self, graph: nx.Graph) -> None:
         """
@@ -187,7 +200,7 @@ class FWGraphBuilder:
         
         # Update the graph nodes with advantage data
         for node in graph.nodes:
-            system_name = graph.nodes[node]["name"]
+            system_name = graph.nodes[node]["solar_system_name"]
             
             if system_name in advantage_data:
                 system_advantage = advantage_data[system_name]
@@ -233,7 +246,7 @@ class FWGraphBuilder:
         # First, mark permanent frontline systems
         frontline_systems = set()
         for node in graph.nodes:
-            system_name = graph.nodes[node]["name"]
+            system_name = graph.nodes[node]["solar_system_name"]
             occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
             
             # Check if the system is a permanent frontline
@@ -251,7 +264,7 @@ class FWGraphBuilder:
             if node in frontline_systems:
                 continue  # Skip already marked frontline systems
             
-            system_name = graph.nodes[node]["name"]
+            system_name = graph.nodes[node]["solar_system_name"]
             occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
             
             if not occupier_faction_id:
@@ -263,7 +276,7 @@ class FWGraphBuilder:
                 neighbor_occupier = graph.nodes[neighbor]["occupier_faction_id"]
                 
                 if not neighbor_occupier:
-                    logger.warning(f"Neighbor {graph.nodes[neighbor]['name']} of {system_name} has no occupier faction ID")
+                    logger.warning(f"Neighbor {graph.nodes[neighbor]['solar_system_name']} of {system_name} has no occupier faction ID")
                     continue
                 
                 if neighbor_occupier != occupier_faction_id:
@@ -285,7 +298,7 @@ class FWGraphBuilder:
             if node in all_frontlines:
                 continue  # Skip frontline systems
             
-            system_name = graph.nodes[node]["name"]
+            system_name = graph.nodes[node]["solar_system_name"]
             occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
             
             if not occupier_faction_id:

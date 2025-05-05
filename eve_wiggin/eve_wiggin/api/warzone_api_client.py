@@ -42,6 +42,7 @@ class WarzoneAPIClient:
         self._cache_file = os.path.join(CACHE_DIR, "warzone_status.json")
         self._cache_ttl = 600  # 10 minutes
         self._lock = asyncio.Lock()
+        self._system_names_cache = {}  # In-memory cache for system names
     
     async def get_warzone_status(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
@@ -165,8 +166,8 @@ class WarzoneAPIClient:
         """
         Get the name of a solar system from its ID.
         
-        This is a simplified implementation that uses a local cache.
-        In a real implementation, you would use the ESI API to get the system name.
+        This method uses a combination of in-memory cache and file cache to map system IDs to names.
+        It also loads system names from the pickle file if available.
         
         Args:
             system_id (int): The ID of the solar system.
@@ -174,31 +175,85 @@ class WarzoneAPIClient:
         Returns:
             Optional[str]: The name of the solar system, or None if not found.
         """
-        # This is a simplified implementation
-        # In a real implementation, you would use the ESI API to get the system name
-        # For now, we'll use a cache file to store system ID to name mappings
+        # Convert system_id to string for dictionary lookup
+        system_id_str = str(system_id)
         
+        # Check in-memory cache first
+        if system_id_str in self._system_names_cache:
+            return self._system_names_cache[system_id_str]
+        
+        # Try to load from file cache
         cache_file = os.path.join(CACHE_DIR, "system_names.json")
         
-        # Try to load the cache
+        # Load the cache if it exists
         system_names = {}
         if os.path.exists(cache_file):
             try:
                 with open(cache_file, "r") as f:
                     system_names = json.load(f)
+                
+                # Update in-memory cache
+                self._system_names_cache.update(system_names)
+                
+                # If we have the system name in the cache, return it
+                if system_id_str in system_names:
+                    return system_names[system_id_str]
             except Exception as e:
                 logger.warning(f"Error reading system names cache: {e}")
         
-        # Convert system_id to string for dictionary lookup
-        system_id_str = str(system_id)
+        # If not found in cache, try to load from the pickle file
+        try:
+            # Path to the pickle file
+            pickle_file = os.path.join(os.path.dirname(__file__), "..", "data", "ama_min.pickle")
+            
+            if os.path.exists(pickle_file):
+                import pickle
+                with open(pickle_file, "rb") as f:
+                    systems_data = pickle.load(f)
+                
+                # Check if systems_data is a dictionary
+                if isinstance(systems_data, dict):
+                    # Try to find the system in the pickle data
+                    if system_id_str in systems_data:
+                        system_name = systems_data[system_id_str].get("solar_system_name")
+                        if system_name:
+                            # Update caches
+                            self._system_names_cache[system_id_str] = system_name
+                            system_names[system_id_str] = system_name
+                            
+                            # Save to file cache
+                            with open(cache_file, "w") as f:
+                                json.dump(system_names, f)
+                            
+                            return system_name
+                    
+                    # If not found by ID, try to find by solar_system_id
+                    for sys_id, system in systems_data.items():
+                        if str(system.get("solar_system_id")) == system_id_str:
+                            system_name = system.get("solar_system_name")
+                            if system_name:
+                                # Update caches
+                                self._system_names_cache[system_id_str] = system_name
+                                system_names[system_id_str] = system_name
+                                
+                                # Save to file cache
+                                with open(cache_file, "w") as f:
+                                    json.dump(system_names, f)
+                                
+                                return system_name
+        except Exception as e:
+            logger.warning(f"Error loading system name from pickle: {e}")
         
-        # If we have the system name in the cache, return it
-        if system_id_str in system_names:
-            return system_names[system_id_str]
+        # If all else fails, return a placeholder
+        placeholder = f"System {system_id}"
+        self._system_names_cache[system_id_str] = placeholder
+        system_names[system_id_str] = placeholder
         
-        # Otherwise, return a placeholder
-        # In a real implementation, you would fetch this from the ESI API
-        return f"System {system_id}"
+        # Save to file cache
+        with open(cache_file, "w") as f:
+            json.dump(system_names, f)
+        
+        return placeholder
 
 
 # Create a global warzone API client instance
@@ -213,4 +268,3 @@ def get_warzone_api_client() -> WarzoneAPIClient:
         WarzoneAPIClient: A warzone API client instance.
     """
     return warzone_api_client
-
