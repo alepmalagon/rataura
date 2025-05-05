@@ -1,501 +1,291 @@
 """
-Faction Warfare Graph Builder.
-
-This module builds a NetworkX graph with all the necessary information for faction warfare analysis.
-It focuses specifically on the Amarr/Minmatar warzone and avoids unnecessary data fetching.
+Module for building a NetworkX graph of faction warfare systems.
 """
 
 import logging
-import pickle
 import os
+import pickle
+from typing import Dict, List, Set, Tuple, Any, Optional
 import networkx as nx
-from typing import Dict, List, Set, Any, Optional, Tuple
 
-from eve_wiggin.api.esi_client import get_esi_client
+from eve_wiggin.api.cached_esi_client import get_cached_esi_client
 from eve_wiggin.api.web_scraper_selenium import get_web_scraper_selenium
-from eve_wiggin.models.faction_warfare import (
-    FactionID, SystemAdjacency, SystemStatus
-)
+from eve_wiggin.api.puppeteer_scraper import get_puppeteer_scraper
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
-# Path to filtered pickle files
-AMA_MIN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "ama_min.pickle")
+# Constants
+AMARR_FACTION_ID = 500003
+MINMATAR_FACTION_ID = 500002
+CALDARI_FACTION_ID = 500001
+GALLENTE_FACTION_ID = 500004
 
-# Define permanent frontline systems
-AMARR_PERMANENT_FRONTLINES = {
-    "Amamake", "Bosboger", "Auner", "Resbroko", "Evati", "Arnstur"
-}
+# Permanent frontline systems
+AMARR_PERMANENT_FRONTLINES = ["Arzad", "Kamela", "Huola", "Kourmonen"]
+MINMATAR_PERMANENT_FRONTLINES = ["Amamake", "Teonusude", "Eszur", "Vard"]
 
-MINMATAR_PERMANENT_FRONTLINES = {
-    "Raa", "Kamela", "Sosala", "Huola", "Anka", "Iesa", "Uusanen", "Saikamon", "Halmah"
-}
+# Pickle file paths
+AMA_MIN_PICKLE = os.path.join(os.path.dirname(__file__), "..", "data", "ama_min.pickle")
 
 class FWGraphBuilder:
     """
-    Service for building a NetworkX graph with faction warfare data.
+    Builder for faction warfare system graphs.
     """
     
-    # Singleton instance
-    _instance = None
-    
-    def __init__(self, access_token: Optional[str] = None):
+    def __init__(self):
         """
-        Initialize the faction warfare graph builder.
+        Initialize the graph builder.
+        """
+        self.esi_client = get_cached_esi_client()
+        self.web_scraper = get_puppeteer_scraper()  # Use the Puppeteer scraper instead
+        
+    async def build_graph(self, warzone: str = "amarr_minmatar") -> nx.Graph:
+        """
+        Build a NetworkX graph of faction warfare systems.
         
         Args:
-            access_token (Optional[str], optional): The access token for authenticated requests.
-        """
-        self.esi_client = get_esi_client(access_token)
-        # Use the new Selenium-based web scraper
-        self.web_scraper = get_web_scraper_selenium()
-        self.graph = nx.Graph()
-        self.system_id_to_name = {}
-        self.system_name_to_id = {}
-        
-    async def build_warzone_graph(self) -> nx.Graph:
-        """
-        Build a NetworkX graph with all the necessary information for the Amarr/Minmatar warzone.
+            warzone (str, optional): The warzone to build the graph for. Defaults to "amarr_minmatar".
         
         Returns:
-            nx.Graph: The NetworkX graph with faction warfare data.
+            nx.Graph: A NetworkX graph of faction warfare systems.
         """
-        try:
-            # Step 1: Load the base graph from the filtered pickle file
-            logger.info("Step 1: Loading base graph from filtered pickle file...")
-            base_graph = self._load_base_graph()
-            
-            # Step 2: Get faction warfare systems from ESI API
-            logger.info("Step 2: Getting faction warfare systems from ESI API...")
-            fw_systems = await self._get_fw_systems()
-            
-            # Step 3: Get advantage data from EVE Online website
-            logger.info("Step 3: Getting advantage data from EVE Online website...")
-            advantage_data = await self._get_advantage_data()
-            
-            # Step 4: Enrich the graph with faction warfare data
-            logger.info("Step 4: Enriching graph with faction warfare data...")
-            self._enrich_graph_with_fw_data(base_graph, fw_systems, advantage_data)
-            
-            # Step 5: Determine system adjacency (frontline, command ops, rearguard)
-            logger.info("Step 5: Determining system adjacency (frontline, command ops, rearguard)...")
-            self._determine_system_adjacency(base_graph)
-            
-            logger.info(f"Built warzone graph with {base_graph.number_of_nodes()} nodes and {base_graph.number_of_edges()} edges")
-            
-            return base_graph
-        except Exception as e:
-            logger.error(f"Error building warzone graph: {e}", exc_info=True)
-            # Return an empty graph in case of error
-            return nx.Graph()
-    
-    def _load_base_graph(self) -> nx.Graph:
-        """
-        Load the base graph from the filtered pickle file.
+        logger.info(f"Building graph for {warzone} warzone...")
         
-        Returns:
-            nx.Graph: The base NetworkX graph.
-        """
-        try:
-            # Load the pickle file
-            if not os.path.exists(AMA_MIN_FILE):
-                logger.error(f"Pickle file not found: {AMA_MIN_FILE}")
-                return nx.Graph()
-            
-            with open(AMA_MIN_FILE, 'rb') as f:
-                systems_data = pickle.load(f)
-            
-            # Create a new undirected graph
-            G = nx.Graph()
-            
-            # Convert all keys in systems_data to strings for consistency
-            string_systems_data = {}
-            for system_id, system_data in systems_data.items():
-                string_systems_data[str(system_id)] = system_data
-            
-            # Add nodes to the graph
-            for system_id, system_data in string_systems_data.items():
-                # Get system name
-                system_name = system_data.get('solar_system_name', f"Unknown-{system_id}")
-                
-                # Store system ID to name mapping
-                self.system_id_to_name[system_id] = system_name
-                self.system_name_to_id[system_name] = system_id
-                
-                # Add node with all system attributes
-                G.add_node(system_id, **system_data)
+        # Load the pickle file
+        if warzone == "amarr_minmatar":
+            pickle_file = AMA_MIN_PICKLE
+            faction_ids = [AMARR_FACTION_ID, MINMATAR_FACTION_ID]
+        else:
+            raise ValueError(f"Unsupported warzone: {warzone}")
+        
+        # Load the pickle file
+        with open(pickle_file, "rb") as f:
+            systems_data = pickle.load(f)
+        
+        logger.info(f"Loaded {len(systems_data)} systems from {pickle_file}")
+        
+        # Create a new graph
+        graph = nx.Graph()
+        
+        # Create a dictionary with string keys for consistent handling
+        systems_dict = {str(system["solar_system_id"]): system for system in systems_data}
+        
+        # Add nodes to the graph
+        for system_id, system in systems_dict.items():
+            graph.add_node(
+                system_id,
+                name=system["solar_system_name"],
+                region=system["region_name"],
+                constellation=system["constellation_name"],
+                system_id=system["solar_system_id"],
+                owner_faction_id=None,  # Will be populated from ESI data
+                occupier_faction_id=None,  # Will be populated from ESI data
+                victory_points=0,
+                victory_points_threshold=0,
+                contested=False,
+                contest_percentage=0.0,
+                advantage=0.0,
+                adjacency="rearguard"  # Default adjacency
+            )
             
             # Add edges to the graph
-            for system_id, system_data in string_systems_data.items():
-                # Get adjacent systems
-                adjacent_systems = system_data.get('adjacent', [])
-                
-                # Convert adjacent_systems to strings if they are integers
-                adjacent_systems = [str(adj_id) for adj_id in adjacent_systems]
-                
-                for adj_id in adjacent_systems:
-                    # Check if the adjacent system is in our data
-                    if adj_id in string_systems_data:
-                        # Add edge if it doesn't already exist
-                        if not G.has_edge(system_id, adj_id):
-                            G.add_edge(system_id, adj_id)
-                            logger.debug(f"Added edge between {self.system_id_to_name.get(system_id, system_id)} and {self.system_id_to_name.get(adj_id, adj_id)}")
-            
-            logger.info(f"Loaded base graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
-            return G
+            for adjacent_id in system["adjacent"]:
+                # Convert to string for consistent handling
+                adjacent_id = str(adjacent_id)
+                if adjacent_id in systems_dict:
+                    graph.add_edge(system_id, adjacent_id)
+                    logger.debug(f"Added edge between {system['solar_system_name']} and {systems_dict[adjacent_id]['solar_system_name']}")
         
-        except Exception as e:
-            logger.error(f"Error loading base graph: {e}", exc_info=True)
-            return nx.Graph()
+        # Log the number of nodes and edges
+        logger.info(f"Created graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
+        
+        # Check if any nodes have no adjacent systems
+        for node in graph.nodes:
+            neighbors = list(graph.neighbors(node))
+            logger.debug(f"System {graph.nodes[node]['name']} has {len(neighbors)} adjacent systems")
+        
+        # Enrich the graph with ESI data
+        await self._enrich_graph_with_esi_data(graph, faction_ids)
+        
+        # Enrich the graph with advantage data from the web scraper
+        await self._enrich_graph_with_advantage_data(graph)
+        
+        # Determine adjacency for each system
+        self._determine_adjacency(graph)
+        
+        return graph
     
-    async def _get_fw_systems(self) -> Dict[str, Dict[str, Any]]:
+    async def _enrich_graph_with_esi_data(self, graph: nx.Graph, faction_ids: List[int]) -> None:
         """
-        Get faction warfare systems from the ESI API.
+        Enrich the graph with data from the ESI API.
         
-        Returns:
-            Dict[str, Dict[str, Any]]: Dictionary mapping system IDs to faction warfare data.
+        Args:
+            graph (nx.Graph): The graph to enrich.
+            faction_ids (List[int]): The faction IDs to filter by.
         """
-        try:
-            # Get faction warfare systems from ESI
-            raw_systems = await self.esi_client.get_fw_systems()
-            
-            # Process systems
-            fw_systems = {}
-            for raw_system in raw_systems:
-                system_id = str(raw_system["solar_system_id"])
+        logger.info("Enriching graph with ESI data...")
+        
+        # Get faction warfare systems from ESI
+        fw_systems = await self.esi_client.get_fw_systems(faction_ids)
+        
+        # Create a dictionary for quick lookup
+        fw_systems_dict = {str(system["solar_system_id"]): system for system in fw_systems}
+        
+        # Update the graph nodes with ESI data
+        for node in graph.nodes:
+            if node in fw_systems_dict:
+                fw_system = fw_systems_dict[node]
+                
+                # Update node attributes
+                graph.nodes[node]["owner_faction_id"] = fw_system["owner_faction_id"]
+                graph.nodes[node]["occupier_faction_id"] = fw_system["occupier_faction_id"]
+                graph.nodes[node]["victory_points"] = fw_system["victory_points"]
+                graph.nodes[node]["victory_points_threshold"] = fw_system["victory_points_threshold"]
+                graph.nodes[node]["contested"] = fw_system["contested"]
                 
                 # Calculate contest percentage
-                victory_points = raw_system["victory_points"]
-                victory_points_threshold = raw_system["victory_points_threshold"]
-                contest_percent = 0.0
-                if victory_points_threshold > 0:
-                    contest_percent = (victory_points / victory_points_threshold) * 100
+                if fw_system["victory_points_threshold"] > 0:
+                    contest_percentage = fw_system["victory_points"] / fw_system["victory_points_threshold"] * 100
+                    graph.nodes[node]["contest_percentage"] = contest_percentage
                 
-                # Determine if this is an Amarr/Minmatar system
-                occupier_faction_id = raw_system["occupier_faction_id"]
-                if occupier_faction_id not in [FactionID.AMARR_EMPIRE, FactionID.MINMATAR_REPUBLIC]:
-                    continue
-                
-                # Create system data (without advantage - will be added from web scraper)
-                fw_systems[system_id] = {
-                    "owner_faction_id": raw_system["owner_faction_id"],
-                    "occupier_faction_id": occupier_faction_id,
-                    "contested": raw_system["contested"],
-                    "victory_points": victory_points,
-                    "victory_points_threshold": victory_points_threshold,
-                    "advantage": 0.0,  # Default value, will be updated with web scraper data
-                    "contest_percent": contest_percent
-                }
-            
-            logger.info(f"Got {len(fw_systems)} Amarr/Minmatar faction warfare systems from ESI")
-            return fw_systems
-        
-        except Exception as e:
-            logger.error(f"Error getting faction warfare systems: {e}", exc_info=True)
-            return {}
+                logger.debug(f"Enriched {graph.nodes[node]['name']} with ESI data")
+            else:
+                logger.warning(f"System {graph.nodes[node]['name']} (ID: {node}) not found in ESI data")
     
-    async def _get_advantage_data(self) -> Dict[str, float]:
+    async def _enrich_graph_with_advantage_data(self, graph: nx.Graph) -> None:
         """
-        Get advantage data for faction warfare systems from the EVE Online website.
-        
-        Returns:
-            Dict[str, float]: Dictionary mapping system names to advantage values.
-        """
-        try:
-            # Get advantage data from web scraper
-            advantage_data = await self.web_scraper.get_advantage_data()
-            logger.info(f"Got advantage data for {len(advantage_data)} systems from EVE Online website")
-            return advantage_data
-        except Exception as e:
-            logger.error(f"Error getting advantage data: {e}", exc_info=True)
-            return {}
-    
-    def _enrich_graph_with_fw_data(self, G: nx.Graph, fw_systems: Dict[str, Dict[str, Any]], 
-                                  advantage_data: Dict[str, float]) -> None:
-        """
-        Enrich the graph with faction warfare data.
+        Enrich the graph with advantage data from the web scraper.
         
         Args:
-            G (nx.Graph): The NetworkX graph to enrich.
-            fw_systems (Dict[str, Dict[str, Any]]): Dictionary mapping system IDs to faction warfare data.
-            advantage_data (Dict[str, float]): Dictionary mapping system names to advantage values.
+            graph (nx.Graph): The graph to enrich.
         """
-        try:
-            # Add faction warfare data to nodes
-            for system_id, fw_data in fw_systems.items():
-                if system_id in G:
-                    # Get system name for advantage lookup
-                    system_name = G.nodes[system_id].get("solar_system_name", "")
-                    
-                    # Update advantage from web scraper data if available
-                    if system_name in advantage_data:
-                        fw_data["advantage"] = advantage_data[system_name]
-                        logger.debug(f"Updated advantage for {system_name} to {fw_data['advantage']} from web scraper")
-                    
-                    # Update node attributes with faction warfare data
-                    nx.set_node_attributes(G, {system_id: fw_data})
-            
-            # Set default values for systems not in faction warfare
-            for system_id in G.nodes():
-                if system_id not in fw_systems:
-                    # Set default values for non-faction warfare systems
-                    default_data = {
-                        "owner_faction_id": 0,  # 0 means not in faction warfare
-                        "occupier_faction_id": 0,
-                        "contested": SystemStatus.UNCONTESTED,
-                        "victory_points": 0,
-                        "victory_points_threshold": 0,
-                        "advantage": 0.0,
-                        "contest_percent": 0.0,
-                        "adjacency": SystemAdjacency.REARGUARD  # Default adjacency
-                    }
-                    nx.set_node_attributes(G, {system_id: default_data})
-            
-            logger.info(f"Enriched graph with faction warfare data")
+        logger.info("Enriching graph with advantage data from web scraper...")
         
-        except Exception as e:
-            logger.error(f"Error enriching graph with faction warfare data: {e}", exc_info=True)
-    
-    def _determine_system_adjacency(self, G: nx.Graph) -> None:
-        """
-        Determine system adjacency (frontline, command ops, rearguard) for each node in the graph.
+        # Get advantage data from the web scraper
+        advantage_data = await self.web_scraper.get_advantage_data()
         
-        Args:
-            G (nx.Graph): The NetworkX graph to process.
-        """
-        try:
-            # Step 1: Mark all systems as rearguard by default
-            logger.info("Step 1: Marking all systems as rearguard by default...")
-            for system_id in G.nodes():
-                G.nodes[system_id]["adjacency"] = SystemAdjacency.REARGUARD
+        # Update the graph nodes with advantage data
+        for node in graph.nodes:
+            system_name = graph.nodes[node]["name"]
             
-            # Step 2: Mark permanent frontline systems
-            logger.info("Step 2: Marking permanent frontline systems...")
-            self._mark_permanent_frontlines(G)
-            
-            # Step 3: Find frontline systems based on adjacency to enemy territory
-            logger.info("Step 3: Finding frontline systems based on adjacency to enemy territory...")
-            self._find_frontlines(G)
-            
-            # Step 4: Find command operations systems (one jump from frontlines)
-            logger.info("Step 4: Finding command operations systems (one jump from frontlines)...")
-            self._find_command_ops(G)
-            
-            # Count systems by adjacency
-            frontlines = sum(1 for _, data in G.nodes(data=True) if data.get("adjacency") == SystemAdjacency.FRONTLINE)
-            command_ops = sum(1 for _, data in G.nodes(data=True) if data.get("adjacency") == SystemAdjacency.COMMAND_OPERATIONS)
-            rearguards = sum(1 for _, data in G.nodes(data=True) if data.get("adjacency") == SystemAdjacency.REARGUARD)
-            
-            logger.info(f"Adjacency determination complete: {frontlines} frontlines, {command_ops} command ops, {rearguards} rearguards")
-        
-        except Exception as e:
-            logger.error(f"Error determining system adjacency: {e}", exc_info=True)
-    
-    def _mark_permanent_frontlines(self, G: nx.Graph) -> None:
-        """
-        Mark permanent frontline systems based on the predefined lists.
-        
-        Args:
-            G (nx.Graph): The NetworkX graph to process.
-        """
-        permanent_frontlines_marked = 0
-        
-        for system_id in G.nodes():
-            system_name = G.nodes[system_id].get("solar_system_name", "")
-            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
-            
-            # Check if this is a permanent frontline for the controlling faction
-            if (occupier_faction_id == FactionID.AMARR_EMPIRE and 
-                system_name in AMARR_PERMANENT_FRONTLINES):
-                G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                logger.info(f"Marked {system_name} as permanent Amarr frontline")
-                permanent_frontlines_marked += 1
-                
-            if (occupier_faction_id == FactionID.MINMATAR_REPUBLIC and 
-                system_name in MINMATAR_PERMANENT_FRONTLINES):
-                G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                logger.info(f"Marked {system_name} as permanent Minmatar frontline")
-                permanent_frontlines_marked += 1
-        
-        logger.info(f"Marked {permanent_frontlines_marked} permanent frontline systems")
-    
-    def _find_frontlines(self, G: nx.Graph) -> None:
-        """
-        Find frontline systems using the NetworkX graph.
-        
-        Frontline systems are those that are adjacent to enemy-controlled systems.
-        
-        Args:
-            G (nx.Graph): The NetworkX graph to process.
-        """
-        # Process all systems to find those adjacent to enemy territory
-        frontlines_found = 0
-        
-        # Log the total number of systems being processed
-        total_systems = G.number_of_nodes()
-        logger.info(f"Processing {total_systems} systems to find frontlines...")
-        
-        # Log faction counts for debugging
-        amarr_systems = sum(1 for _, data in G.nodes(data=True) if data.get("occupier_faction_id") == FactionID.AMARR_EMPIRE)
-        minmatar_systems = sum(1 for _, data in G.nodes(data=True) if data.get("occupier_faction_id") == FactionID.MINMATAR_REPUBLIC)
-        neutral_systems = total_systems - amarr_systems - minmatar_systems
-        logger.info(f"System faction breakdown: {amarr_systems} Amarr, {minmatar_systems} Minmatar, {neutral_systems} neutral")
-        
-        for system_id in G.nodes():
-            # Skip if already marked as frontline
-            if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
-                continue
-            
-            system_name = G.nodes[system_id].get("solar_system_name", "")
-            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
-            
-            # Skip systems with no faction
-            if occupier_faction_id == 0:
-                logger.debug(f"Skipping {system_name} - no faction")
-                continue
-            
-            # Get adjacent systems
-            adjacent_systems = list(G.neighbors(system_id))
-            logger.debug(f"System {system_name} has {len(adjacent_systems)} adjacent systems")
-            
-            # Check if any adjacent systems are controlled by the enemy faction
-            for adjacent_id in adjacent_systems:
-                adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
-                adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
-                
-                # Skip systems with no faction
-                if adjacent_faction == 0:
-                    logger.debug(f"  Adjacent system {adjacent_name} has no faction, skipping")
-                    continue
-                
-                # Check if this is an enemy system
-                is_enemy = False
-                if occupier_faction_id == FactionID.AMARR_EMPIRE and adjacent_faction == FactionID.MINMATAR_REPUBLIC:
-                    is_enemy = True
-                    logger.debug(f"  Adjacent system {adjacent_name} is Minmatar (enemy to Amarr)")
-                elif occupier_faction_id == FactionID.MINMATAR_REPUBLIC and adjacent_faction == FactionID.AMARR_EMPIRE:
-                    is_enemy = True
-                    logger.debug(f"  Adjacent system {adjacent_name} is Amarr (enemy to Minmatar)")
+            if system_name in advantage_data:
+                graph.nodes[node]["advantage"] = advantage_data[system_name]
+                logger.debug(f"Set advantage for {system_name} to {advantage_data[system_name]}")
+            else:
+                # If the system is not in the advantage data, calculate a default value
+                # based on the contest percentage
+                if graph.nodes[node]["contested"]:
+                    # For contested systems, use a default value of 0.5 (neutral)
+                    graph.nodes[node]["advantage"] = 0.5
                 else:
-                    logger.debug(f"  Adjacent system {adjacent_name} has faction {adjacent_faction}, not an enemy to {occupier_faction_id}")
+                    # For uncontested systems, set advantage to 0 (no advantage)
+                    graph.nodes[node]["advantage"] = 0.0
                 
-                if is_enemy:
-                    # This system is adjacent to an enemy system, so it's a frontline
-                    G.nodes[system_id]["adjacency"] = SystemAdjacency.FRONTLINE
-                    logger.info(f"Marked {system_name} as frontline (adjacent to enemy system {adjacent_name})")
-                    frontlines_found += 1
-                    break
-        
-        logger.info(f"Found {frontlines_found} additional frontline systems based on adjacency to enemy territory")
-        
-        # If no frontlines were found, log more detailed information for debugging
-        if frontlines_found == 0:
-            logger.warning("No additional frontline systems found! Detailed system analysis:")
-            
-            # Check each system and log its neighbors with factions
-            for system_id in G.nodes():
-                system_name = G.nodes[system_id].get("solar_system_name", "")
-                occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
-                
-                # Skip systems with no faction
-                if occupier_faction_id == 0:
-                    continue
-                
-                # Get faction name for better readability
-                faction_name = "Unknown"
-                if occupier_faction_id == FactionID.AMARR_EMPIRE:
-                    faction_name = "Amarr"
-                elif occupier_faction_id == FactionID.MINMATAR_REPUBLIC:
-                    faction_name = "Minmatar"
-                
-                # Get adjacent systems
-                adjacent_systems = list(G.neighbors(system_id))
-                
-                # Log system and its neighbors
-                logger.info(f"System: {system_name} ({faction_name}) - {len(adjacent_systems)} neighbors")
-                
-                for adjacent_id in adjacent_systems:
-                    adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
-                    adjacent_faction_id = G.nodes[adjacent_id].get("occupier_faction_id", 0)
-                    
-                    # Get faction name for better readability
-                    adjacent_faction_name = "Neutral"
-                    if adjacent_faction_id == FactionID.AMARR_EMPIRE:
-                        adjacent_faction_name = "Amarr"
-                    elif adjacent_faction_id == FactionID.MINMATAR_REPUBLIC:
-                        adjacent_faction_name = "Minmatar"
-                    
-                    logger.info(f"  - Neighbor: {adjacent_name} ({adjacent_faction_name})")
+                logger.debug(f"Using default advantage for {system_name}: {graph.nodes[node]['advantage']}")
     
-    def _find_command_ops(self, G: nx.Graph) -> None:
+    def _determine_adjacency(self, graph: nx.Graph) -> None:
         """
-        Find command operations systems using the NetworkX graph.
+        Determine the adjacency type for each system in the graph.
         
-        Command operations systems are those that are adjacent to same-faction frontline systems.
+        Adjacency types:
+        - Frontline: Systems that are adjacent to enemy-controlled systems or are in the list of permanent frontlines
+        - Command Operations: Systems that are adjacent to same-faction frontline systems
+        - Rearguard: All other systems
         
         Args:
-            G (nx.Graph): The NetworkX graph to process.
+            graph (nx.Graph): The graph to process.
         """
-        # Process all systems to find those adjacent to frontlines of the same faction
-        command_ops_found = 0
+        logger.info("Determining adjacency for each system...")
         
-        # Log the total number of systems being processed
-        total_systems = G.number_of_nodes()
-        logger.info(f"Processing {total_systems} systems to find command operations...")
+        # Mark all systems as rearguard by default
+        for node in graph.nodes:
+            graph.nodes[node]["adjacency"] = "rearguard"
         
-        for system_id in G.nodes():
-            # Skip if already marked as frontline
-            if G.nodes[system_id].get("adjacency") == SystemAdjacency.FRONTLINE:
+        # First, mark permanent frontline systems
+        frontline_systems = set()
+        for node in graph.nodes:
+            system_name = graph.nodes[node]["name"]
+            occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
+            
+            # Check if the system is a permanent frontline
+            if (system_name in AMARR_PERMANENT_FRONTLINES and occupier_faction_id == AMARR_FACTION_ID) or \
+               (system_name in MINMATAR_PERMANENT_FRONTLINES and occupier_faction_id == MINMATAR_FACTION_ID):
+                graph.nodes[node]["adjacency"] = "frontline"
+                frontline_systems.add(node)
+                logger.debug(f"Marked {system_name} as frontline (permanent)")
+        
+        logger.info(f"Marked {len(frontline_systems)} permanent frontline systems")
+        
+        # Next, find additional frontline systems based on adjacency to enemy territory
+        additional_frontlines = set()
+        for node in graph.nodes:
+            if node in frontline_systems:
+                continue  # Skip already marked frontline systems
+            
+            system_name = graph.nodes[node]["name"]
+            occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
+            
+            if not occupier_faction_id:
+                logger.warning(f"System {system_name} has no occupier faction ID")
                 continue
             
-            system_name = G.nodes[system_id].get("solar_system_name", "")
-            occupier_faction_id = G.nodes[system_id].get("occupier_faction_id", 0)
-            
-            # Skip systems with no faction
-            if occupier_faction_id == 0:
-                logger.debug(f"Skipping {system_name} - no faction")
-                continue
-            
-            # Get adjacent systems
-            adjacent_systems = list(G.neighbors(system_id))
-            logger.debug(f"System {system_name} has {len(adjacent_systems)} adjacent systems")
-            
-            # Check if any adjacent systems are frontlines of the same faction
-            for adjacent_id in adjacent_systems:
-                adjacent_faction = G.nodes[adjacent_id].get("occupier_faction_id", 0)
-                adjacent_adjacency = G.nodes[adjacent_id].get("adjacency", "")
-                adjacent_name = G.nodes[adjacent_id].get("solar_system_name", "")
+            # Check if the system is adjacent to an enemy-controlled system
+            for neighbor in graph.neighbors(node):
+                neighbor_occupier = graph.nodes[neighbor]["occupier_faction_id"]
                 
-                # Skip systems with no faction
-                if adjacent_faction == 0:
-                    logger.debug(f"  Adjacent system {adjacent_name} has no faction, skipping")
+                if not neighbor_occupier:
+                    logger.warning(f"Neighbor {graph.nodes[neighbor]['name']} of {system_name} has no occupier faction ID")
                     continue
                 
-                # Check if this is a frontline system of the same faction
-                if (adjacent_faction == occupier_faction_id and 
-                    adjacent_adjacency == SystemAdjacency.FRONTLINE):
-                    # This system is adjacent to a frontline of the same faction, so it's a command ops
-                    G.nodes[system_id]["adjacency"] = SystemAdjacency.COMMAND_OPERATIONS
-                    logger.info(f"Marked {system_name} as command ops (adjacent to frontline {adjacent_name})")
-                    command_ops_found += 1
+                if neighbor_occupier != occupier_faction_id:
+                    # This system is adjacent to an enemy-controlled system, so it's a frontline
+                    graph.nodes[node]["adjacency"] = "frontline"
+                    additional_frontlines.add(node)
+                    logger.debug(f"Marked {system_name} as frontline (adjacent to enemy)")
                     break
         
-        logger.info(f"Found {command_ops_found} command operations systems based on adjacency to same-faction frontlines")
+        logger.info(f"Found {len(additional_frontlines)} additional frontline systems based on adjacency to enemy territory")
+        
+        # Combine all frontline systems
+        all_frontlines = frontline_systems.union(additional_frontlines)
+        logger.info(f"Total frontline systems: {len(all_frontlines)}")
+        
+        # Finally, mark command operations systems (adjacent to same-faction frontlines)
+        command_ops_systems = set()
+        for node in graph.nodes:
+            if node in all_frontlines:
+                continue  # Skip frontline systems
+            
+            system_name = graph.nodes[node]["name"]
+            occupier_faction_id = graph.nodes[node]["occupier_faction_id"]
+            
+            if not occupier_faction_id:
+                logger.warning(f"System {system_name} has no occupier faction ID")
+                continue
+            
+            # Check if the system is adjacent to a same-faction frontline system
+            for neighbor in graph.neighbors(node):
+                if neighbor in all_frontlines and graph.nodes[neighbor]["occupier_faction_id"] == occupier_faction_id:
+                    # This system is adjacent to a same-faction frontline system, so it's a command operations system
+                    graph.nodes[node]["adjacency"] = "command_ops"
+                    command_ops_systems.add(node)
+                    logger.debug(f"Marked {system_name} as command_ops (adjacent to same-faction frontline)")
+                    break
+        
+        logger.info(f"Marked {len(command_ops_systems)} command operations systems")
+        
+        # Count the remaining rearguard systems
+        rearguard_count = graph.number_of_nodes() - len(all_frontlines) - len(command_ops_systems)
+        logger.info(f"Remaining rearguard systems: {rearguard_count}")
 
+# Create a global graph builder instance
+fw_graph_builder = FWGraphBuilder()
 
-def get_fw_graph_builder(access_token: Optional[str] = None) -> FWGraphBuilder:
+def get_fw_graph_builder() -> FWGraphBuilder:
     """
-    Get an instance of the faction warfare graph builder.
-    
-    Args:
-        access_token (Optional[str], optional): The access token for authenticated requests.
+    Get a faction warfare graph builder instance.
     
     Returns:
-        FWGraphBuilder: An instance of the faction warfare graph builder.
+        FWGraphBuilder: A faction warfare graph builder instance.
     """
-    # Implement singleton pattern to avoid creating multiple instances
-    if FWGraphBuilder._instance is None:
-        FWGraphBuilder._instance = FWGraphBuilder(access_token)
-        logger.info("Created new FWGraphBuilder instance")
-    return FWGraphBuilder._instance
+    return fw_graph_builder
