@@ -88,8 +88,11 @@ class FWAnalyzer:
                     contested=data.get("contested", SystemStatus.UNCONTESTED),
                     victory_points=data.get("victory_points", 0),
                     victory_points_threshold=data.get("victory_points_threshold", 0),
-                    advantage=data.get("advantage", 0.0),
-                    contest_percent=data.get("contest_percent", 0.0),
+                    advantage=data.get("net_advantage", 0.0),
+                    amarr_advantage=data.get("amarr_advantage", 0.0),
+                    minmatar_advantage=data.get("minmatar_advantage", 0.0),
+                    net_advantage=data.get("net_advantage", 0.0),
+                    contest_percent=data.get("contest_percentage", 0.0),
                     adjacency=data.get("adjacency", SystemAdjacency.REARGUARD),
                     warzone=Warzone.AMARR_MINMATAR
                 )
@@ -228,8 +231,11 @@ class FWAnalyzer:
                 contested=system_data.get("contested", SystemStatus.UNCONTESTED),
                 victory_points=system_data.get("victory_points", 0),
                 victory_points_threshold=system_data.get("victory_points_threshold", 0),
-                advantage=system_data.get("advantage", 0.0),
-                contest_percent=system_data.get("contest_percent", 0.0),
+                advantage=system_data.get("net_advantage", 0.0),
+                amarr_advantage=system_data.get("amarr_advantage", 0.0),
+                minmatar_advantage=system_data.get("minmatar_advantage", 0.0),
+                net_advantage=system_data.get("net_advantage", 0.0),
+                contest_percent=system_data.get("contest_percentage", 0.0),
                 adjacency=system_data.get("adjacency", SystemAdjacency.REARGUARD),
                 warzone=Warzone.AMARR_MINMATAR
             )
@@ -264,4 +270,3 @@ class FWAnalyzer:
         except Exception as e:
             logger.error(f"Error getting system details: {e}", exc_info=True)
             raise
-
