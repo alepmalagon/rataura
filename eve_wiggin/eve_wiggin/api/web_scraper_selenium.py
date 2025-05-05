@@ -21,6 +21,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -88,12 +89,13 @@ class WebScraperSelenium:
             logger.info(f"Scraped advantage data for {len(combined_data)} systems")
             return combined_data
     
-    async def _scrape_frontlines_page(self, url: str) -> Dict[str, float]:
+    async def _scrape_frontlines_page(self, url: str, max_retries: int = 3) -> Dict[str, float]:
         """
-        Scrape a frontlines page for advantage data.
+        Scrape a frontlines page for advantage data with retry mechanism.
         
         Args:
             url (str): The URL of the frontlines page.
+            max_retries (int): Maximum number of retry attempts.
         
         Returns:
             Dict[str, float]: Dictionary mapping system names to advantage values.
@@ -104,83 +106,148 @@ class WebScraperSelenium:
         if self._use_fallback:
             return await self._scrape_frontlines_page_fallback(url)
         
-        try:
-            # Set up Chrome options
-            chrome_options = Options()
-            chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument(f"user-agent={self.user_agent}")
-            
-            # Set up the driver
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-            
-            # Navigate to the page
-            driver.get(url)
-            
-            # Wait for the page to load (adjust timeout as needed)
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "mantine-WarzoneTable-root"))
-            )
-            
-            # Give the page a moment to fully render
-            time.sleep(5)
-            
-            # Save the page source to a file for debugging
-            page_source = driver.page_source
-            faction = "amarr" if "amarr" in url else "minmatar"
-            timestamp = int(time.time())
-            html_file_path = os.path.join(DEBUG_FOLDER, f"{faction}_page_source_{timestamp}.html")
-            
-            with open(html_file_path, "w", encoding="utf-8") as f:
-                f.write(page_source)
-            
-            logger.info(f"Saved page source to {html_file_path}")
-            
-            # Find the warzone table
-            warzone_table = driver.find_element(By.CLASS_NAME, "mantine-WarzoneTable-root")
-            
-            if warzone_table:
-                # Process each row in the table
-                rows = warzone_table.find_elements(By.TAG_NAME, "tr")
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Scraping {url} (attempt {attempt + 1}/{max_retries})")
                 
-                for row in rows:
-                    try:
-                        # Extract system ID from the row ID
-                        system_id = row.get_attribute("id")
-                        if not system_id or not system_id.startswith("solarsystem-"):
-                            continue
-                        
-                        # Get system name from the first cell
-                        cells = row.find_elements(By.TAG_NAME, "td")
-                        if not cells:
-                            continue
-                        
-                        system_name = cells[0].text.strip()
-                        
-                        # Find the advantage column (5th column)
-                        if len(cells) >= 5:
-                            advantage_cell = cells[4]
-                            advantage_text = advantage_cell.text.strip()
-                            advantage_match = re.search(r'(\d+)%', advantage_text)
+                # Set up Chrome options
+                chrome_options = Options()
+                chrome_options.add_argument("--headless")
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument(f"user-agent={self.user_agent}")
+                chrome_options.add_argument("--window-size=1920,1080")  # Larger window size
+                chrome_options.add_argument("--disable-extensions")
+                chrome_options.add_argument("--disable-gpu")
+                
+                try:
+                    # Try to use ChromeDriverManager
+                    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+                except (WebDriverException, Exception) as e:
+                    logger.warning(f"Failed to initialize Chrome with ChromeDriverManager: {e}")
+                    logger.info("Falling back to direct Chrome initialization")
+                    
+                    # Try direct initialization without ChromeDriverManager
+                    driver = webdriver.Chrome(options=chrome_options)
+                
+                # Navigate to the page
+                driver.get(url)
+                
+                # Wait for the page to load (increased timeout)
+                wait = WebDriverWait(driver, 60)
+                
+                # Wait for the initial page load
+                wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                
+                # Execute JavaScript to scroll down the page to trigger lazy loading
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                driver.execute_script("window.scrollTo(0, 0);")
+                
+                # Wait for the table to appear with a longer timeout
+                try:
+                    logger.info("Waiting for warzone table to appear...")
+                    table_element = wait.until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "mantine-WarzoneTable-root"))
+                    )
+                    logger.info("Warzone table found!")
+                except TimeoutException:
+                    logger.warning(f"Timed out waiting for warzone table on attempt {attempt + 1}")
+                    
+                    # Save the page source for debugging
+                    page_source = driver.page_source
+                    faction = "amarr" if "amarr" in url else "minmatar"
+                    timestamp = int(time.time())
+                    html_file_path = os.path.join(DEBUG_FOLDER, f"{faction}_timeout_{timestamp}_attempt{attempt+1}.html")
+                    
+                    with open(html_file_path, "w", encoding="utf-8") as f:
+                        f.write(page_source)
+                    
+                    logger.info(f"Saved timeout page source to {html_file_path}")
+                    
+                    # Close the driver and try again
+                    driver.quit()
+                    continue
+                
+                # Give the page extra time to fully render
+                logger.info("Waiting for page to fully render...")
+                time.sleep(10)
+                
+                # Save the page source to a file for debugging
+                page_source = driver.page_source
+                faction = "amarr" if "amarr" in url else "minmatar"
+                timestamp = int(time.time())
+                html_file_path = os.path.join(DEBUG_FOLDER, f"{faction}_page_source_{timestamp}.html")
+                
+                with open(html_file_path, "w", encoding="utf-8") as f:
+                    f.write(page_source)
+                
+                logger.info(f"Saved page source to {html_file_path}")
+                
+                # Check if the table is actually populated
+                try:
+                    # Find the warzone table
+                    warzone_table = driver.find_element(By.CLASS_NAME, "mantine-WarzoneTable-root")
+                    
+                    # Check if the table has rows
+                    rows = warzone_table.find_elements(By.TAG_NAME, "tr")
+                    
+                    if not rows:
+                        logger.warning(f"Warzone table found but contains no rows on attempt {attempt + 1}")
+                        driver.quit()
+                        continue
+                    
+                    logger.info(f"Found {len(rows)} rows in the warzone table")
+                    
+                    # Process each row in the table
+                    for row in rows:
+                        try:
+                            # Extract system ID from the row ID
+                            system_id = row.get_attribute("id")
+                            if not system_id or not system_id.startswith("solarsystem-"):
+                                continue
                             
-                            if advantage_match:
-                                advantage_value = float(advantage_match.group(1)) / 100.0
-                                advantage_data[system_name] = advantage_value
-                                logger.debug(f"Scraped advantage for {system_name}: {advantage_value}")
-                    except Exception as e:
-                        logger.error(f"Error processing row: {e}")
-            else:
-                logger.warning(f"Could not find warzone table on {url}")
-            
-            # Close the driver
-            driver.quit()
-            
-        except Exception as e:
-            logger.error(f"Error scraping {url} with Selenium: {e}")
-            logger.info("Falling back to requests/BeautifulSoup method")
-            self._use_fallback = True
-            return await self._scrape_frontlines_page_fallback(url)
+                            # Get system name from the first cell
+                            cells = row.find_elements(By.TAG_NAME, "td")
+                            if not cells:
+                                continue
+                            
+                            system_name = cells[0].text.strip()
+                            
+                            # Find the advantage column (5th column)
+                            if len(cells) >= 5:
+                                advantage_cell = cells[4]
+                                advantage_text = advantage_cell.text.strip()
+                                advantage_match = re.search(r'(\d+)%', advantage_text)
+                                
+                                if advantage_match:
+                                    advantage_value = float(advantage_match.group(1)) / 100.0
+                                    advantage_data[system_name] = advantage_value
+                                    logger.debug(f"Scraped advantage for {system_name}: {advantage_value}")
+                        except Exception as e:
+                            logger.error(f"Error processing row: {e}")
+                    
+                    # If we successfully scraped data, break the retry loop
+                    if advantage_data:
+                        logger.info(f"Successfully scraped advantage data for {len(advantage_data)} systems")
+                        break
+                    else:
+                        logger.warning("No advantage data found in the table")
+                
+                except NoSuchElementException:
+                    logger.warning(f"Could not find warzone table on {url} on attempt {attempt + 1}")
+                
+                # Close the driver
+                driver.quit()
+                
+            except Exception as e:
+                logger.error(f"Error scraping {url} with Selenium on attempt {attempt + 1}: {e}")
+                
+                # If this was the last attempt, fall back to the alternative method
+                if attempt == max_retries - 1:
+                    logger.info("All Selenium attempts failed. Falling back to requests/BeautifulSoup method")
+                    self._use_fallback = True
+                    return await self._scrape_frontlines_page_fallback(url)
         
         return advantage_data
     
