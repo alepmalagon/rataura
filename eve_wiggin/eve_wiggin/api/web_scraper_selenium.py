@@ -1,5 +1,5 @@
 """
-Web scraper for EVE Online faction warfare data using Selenium.
+Web scraper for EVE Online faction warfare data using Selenium with fallback to requests/BeautifulSoup.
 
 This module scrapes the EVE Online website to get advantage data for faction warfare systems,
 which is not available through the ESI API.
@@ -11,6 +11,8 @@ import time
 from typing import Dict, Any, List, Optional
 import re
 import json
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -28,7 +30,7 @@ AMARR_FRONTLINES_URL = "https://www.eveonline.com/frontlines/amarr"
 
 class WebScraperSelenium:
     """
-    Scraper for EVE Online faction warfare data using Selenium.
+    Scraper for EVE Online faction warfare data using Selenium with fallback to requests/BeautifulSoup.
     """
     
     def __init__(self):
@@ -40,6 +42,7 @@ class WebScraperSelenium:
         self._cache_timestamp = 0
         self._cache_ttl = 600  # 10 minutes
         self._lock = asyncio.Lock()
+        self._use_fallback = False
     
     async def get_advantage_data(self, force_refresh: bool = False) -> Dict[str, float]:
         """
@@ -66,6 +69,11 @@ class WebScraperSelenium:
             # Merge the data, with Minmatar data taking precedence in case of duplicates
             combined_data = {**amarr_data, **minmatar_data}
             
+            # If we didn't get any data, use default values
+            if not combined_data:
+                logger.warning("Could not scrape advantage data, using default values")
+                combined_data = self._get_default_advantage_data()
+            
             # Update cache
             self._advantage_cache = combined_data
             self._cache_timestamp = current_time
@@ -84,6 +92,10 @@ class WebScraperSelenium:
             Dict[str, float]: Dictionary mapping system names to advantage values.
         """
         advantage_data = {}
+        
+        # If we've already determined we need to use the fallback, skip trying Selenium
+        if self._use_fallback:
+            return await self._scrape_frontlines_page_fallback(url)
         
         try:
             # Set up Chrome options
@@ -147,9 +159,106 @@ class WebScraperSelenium:
             driver.quit()
             
         except Exception as e:
-            logger.error(f"Error scraping {url}: {e}")
+            logger.error(f"Error scraping {url} with Selenium: {e}")
+            logger.info("Falling back to requests/BeautifulSoup method")
+            self._use_fallback = True
+            return await self._scrape_frontlines_page_fallback(url)
         
         return advantage_data
+    
+    async def _scrape_frontlines_page_fallback(self, url: str) -> Dict[str, float]:
+        """
+        Fallback method to scrape a frontlines page using requests and BeautifulSoup.
+        
+        Args:
+            url (str): The URL of the frontlines page.
+        
+        Returns:
+            Dict[str, float]: Dictionary mapping system names to advantage values.
+        """
+        advantage_data = {}
+        
+        try:
+            headers = {
+                'User-Agent': self.user_agent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+            
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Look for the table with the warzone data
+            table = soup.find('table', class_='mantine-WarzoneTable-root')
+            
+            if table:
+                # Process each row in the table
+                rows = table.find_all('tr')
+                
+                for row in rows:
+                    try:
+                        # Check if this is a system row
+                        system_id = row.get('id')
+                        if not system_id or not system_id.startswith('solarsystem-'):
+                            continue
+                        
+                        # Get system name from the first cell
+                        cells = row.find_all('td')
+                        if not cells:
+                            continue
+                        
+                        system_name = cells[0].text.strip()
+                        
+                        # Find the advantage column (5th column)
+                        if len(cells) >= 5:
+                            advantage_cell = cells[4]
+                            advantage_text = advantage_cell.text.strip()
+                            advantage_match = re.search(r'(\d+)%', advantage_text)
+                            
+                            if advantage_match:
+                                advantage_value = float(advantage_match.group(1)) / 100.0
+                                advantage_data[system_name] = advantage_value
+                                logger.debug(f"Scraped advantage for {system_name}: {advantage_value} (fallback)")
+                    except Exception as e:
+                        logger.error(f"Error processing row (fallback): {e}")
+            else:
+                logger.warning(f"Could not find warzone table on {url} (fallback)")
+                
+        except Exception as e:
+            logger.error(f"Error scraping {url} with fallback method: {e}")
+        
+        return advantage_data
+    
+    def _get_default_advantage_data(self) -> Dict[str, float]:
+        """
+        Get default advantage data for systems when scraping fails.
+        
+        Returns:
+            Dict[str, float]: Dictionary with default advantage values.
+        """
+        # This is a simplified approach - in a real implementation, you might want to
+        # use more sophisticated default values based on historical data or other factors
+        return {
+            # Amarr systems
+            "Arzad": 0.5,
+            "Kamela": 0.5,
+            "Huola": 0.5,
+            "Kourmonen": 0.5,
+            "Aset": 0.5,
+            "Siseide": 0.5,
+            
+            # Minmatar systems
+            "Amamake": 0.5,
+            "Teonusude": 0.5,
+            "Eszur": 0.5,
+            "Vard": 0.5,
+            "Eytjangard": 0.5,
+            "Floseswin": 0.5,
+            
+            # Add more systems as needed
+        }
 
 # Create a global web scraper instance
 web_scraper_selenium = WebScraperSelenium()
@@ -162,4 +271,3 @@ def get_web_scraper_selenium() -> WebScraperSelenium:
         WebScraperSelenium: A web scraper instance.
     """
     return web_scraper_selenium
-
