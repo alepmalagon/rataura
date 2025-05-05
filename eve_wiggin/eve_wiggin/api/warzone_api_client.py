@@ -114,7 +114,7 @@ class WarzoneAPIClient:
             force_refresh (bool, optional): Force a refresh of the cache. Defaults to False.
         
         Returns:
-            Dict[str, Dict[str, float]]: Dictionary mapping system names to advantage data.
+            Dict[str, Dict[str, float]]: Dictionary mapping system IDs to advantage data.
             The advantage data is a dictionary with keys 'amarr', 'minmatar', and 'net_advantage'.
         """
         warzone_data = await self.get_warzone_status(force_refresh)
@@ -125,11 +125,12 @@ class WarzoneAPIClient:
         for system in warzone_data:
             try:
                 system_id = system.get("solarsystemID")
-                system_name = await self._get_system_name(system_id)
-                
-                if not system_name:
-                    logger.warning(f"Could not get name for system ID {system_id}")
+                if not system_id:
+                    logger.warning(f"System missing ID in warzone data: {system}")
                     continue
+                
+                # Convert to string for consistent dictionary keys
+                system_id_str = str(system_id)
                 
                 # Extract advantage data for each faction
                 advantage_info = system.get("advantage", [])
@@ -148,13 +149,13 @@ class WarzoneAPIClient:
                 # Calculate net advantage (Minmatar - Amarr)
                 net_advantage = minmatar_advantage - amarr_advantage
                 
-                advantage_data[system_name] = {
+                advantage_data[system_id_str] = {
                     "amarr": amarr_advantage,
                     "minmatar": minmatar_advantage,
                     "net_advantage": net_advantage
                 }
                 
-                logger.debug(f"Processed advantage for {system_name}: Amarr={amarr_advantage}, Minmatar={minmatar_advantage}, Net={net_advantage}")
+                logger.debug(f"Processed advantage for system ID {system_id_str}: Amarr={amarr_advantage}, Minmatar={minmatar_advantage}, Net={net_advantage}")
                 
             except Exception as e:
                 logger.error(f"Error processing system advantage data: {e}")
