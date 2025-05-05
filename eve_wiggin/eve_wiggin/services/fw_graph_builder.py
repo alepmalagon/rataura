@@ -57,7 +57,7 @@ class FWGraphBuilder:
         else:
             raise ValueError(f"Unsupported warzone: {warzone}")
         
-        # Load the pickle file
+        # Load the pickle file - SOURCE: ama_min.pickle
         with open(pickle_file, "rb") as f:
             systems_data = pickle.load(f)
         
@@ -76,27 +76,27 @@ class FWGraphBuilder:
             # If it's already a list, use it directly
             systems_dict = {str(system["solar_system_id"]): system for system in systems_data}
         
-        # Add nodes to the graph
+        # Add nodes to the graph - SOURCE: ama_min.pickle for system name, neighbors, region
         for system_id, system in systems_dict.items():
             graph.add_node(
                 system_id,
-                name=system["solar_system_name"],
-                region=system["region_name"],
-                constellation=system["constellation_name"],
-                system_id=system["solar_system_id"],
+                name=system["solar_system_name"],  # From pickle
+                region=system["region_name"],      # From pickle
+                constellation=system["constellation_name"],  # From pickle
+                system_id=system["solar_system_id"],  # From pickle
                 owner_faction_id=None,  # Will be populated from ESI data
                 occupier_faction_id=None,  # Will be populated from ESI data
-                victory_points=0,
-                victory_points_threshold=0,
-                contested=False,
-                contest_percentage=0.0,
-                amarr_advantage=0.0,
-                minmatar_advantage=0.0,
-                net_advantage=0.0,
+                victory_points=0,  # Will be populated from ESI data
+                victory_points_threshold=0,  # Will be populated from ESI data
+                contested=False,  # Will be populated from ESI data
+                contest_percentage=0.0,  # Will be populated from ESI data
+                amarr_advantage=0.0,  # Will be populated from warzone API
+                minmatar_advantage=0.0,  # Will be populated from warzone API
+                net_advantage=0.0,  # Will be populated from warzone API
                 adjacency="rearguard"  # Default adjacency
             )
             
-            # Add edges to the graph
+            # Add edges to the graph - SOURCE: ama_min.pickle for system neighbors
             for adjacent_id in system["adjacent"]:
                 # Convert to string for consistent handling
                 adjacent_id = str(adjacent_id)
@@ -112,10 +112,10 @@ class FWGraphBuilder:
             neighbors = list(graph.neighbors(node))
             logger.debug(f"System {graph.nodes[node]['name']} has {len(neighbors)} adjacent systems")
         
-        # Enrich the graph with ESI data
+        # Enrich the graph with ESI data - SOURCE: ESI API /fw/systems/ endpoint
         await self._enrich_graph_with_esi_data(graph, faction_ids)
         
-        # Enrich the graph with advantage data from the warzone API
+        # Enrich the graph with advantage data - SOURCE: EVE Online API warzone/status
         await self._enrich_graph_with_advantage_data(graph)
         
         # Determine adjacency for each system
@@ -144,9 +144,9 @@ class FWGraphBuilder:
             graph (nx.Graph): The graph to enrich.
             faction_ids (List[int]): The faction IDs to filter by.
         """
-        logger.info("Enriching graph with ESI data...")
+        logger.info("Enriching graph with ESI data from /fw/systems/ endpoint...")
         
-        # Get faction warfare systems from ESI
+        # Get faction warfare systems from ESI - SOURCE: ESI API /fw/systems/ endpoint
         fw_systems = await self.esi_client.get_fw_systems()
         
         # Create a dictionary for quick lookup
@@ -157,14 +157,14 @@ class FWGraphBuilder:
             if node in fw_systems_dict:
                 fw_system = fw_systems_dict[node]
                 
-                # Update node attributes
+                # Update node attributes - SOURCE: ESI API /fw/systems/ endpoint
                 graph.nodes[node]["owner_faction_id"] = fw_system["owner_faction_id"]
                 graph.nodes[node]["occupier_faction_id"] = fw_system["occupier_faction_id"]
                 graph.nodes[node]["victory_points"] = fw_system["victory_points"]
                 graph.nodes[node]["victory_points_threshold"] = fw_system["victory_points_threshold"]
                 graph.nodes[node]["contested"] = fw_system["contested"]
                 
-                # Calculate contest percentage
+                # Calculate contest percentage - SOURCE: ESI API /fw/systems/ endpoint
                 if fw_system["victory_points_threshold"] > 0:
                     contest_percentage = fw_system["victory_points"] / fw_system["victory_points_threshold"] * 100
                     graph.nodes[node]["contest_percentage"] = contest_percentage
@@ -180,9 +180,9 @@ class FWGraphBuilder:
         Args:
             graph (nx.Graph): The graph to enrich.
         """
-        logger.info("Enriching graph with advantage data from warzone API...")
+        logger.info("Enriching graph with advantage data from EVE Online API warzone/status endpoint...")
         
-        # Get advantage data from the warzone API
+        # Get advantage data from the warzone API - SOURCE: EVE Online API warzone/status
         advantage_data = await self.warzone_api_client.get_system_advantage_data()
         
         # Update the graph nodes with advantage data
@@ -191,6 +191,7 @@ class FWGraphBuilder:
             
             if system_name in advantage_data:
                 system_advantage = advantage_data[system_name]
+                # Update node attributes - SOURCE: EVE Online API warzone/status
                 graph.nodes[node]["amarr_advantage"] = system_advantage["amarr"]
                 graph.nodes[node]["minmatar_advantage"] = system_advantage["minmatar"]
                 graph.nodes[node]["net_advantage"] = system_advantage["net_advantage"]
