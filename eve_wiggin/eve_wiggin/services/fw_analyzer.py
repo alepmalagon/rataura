@@ -170,9 +170,9 @@ class FWAnalyzer:
                 occupier_faction_id = system.occupier_faction_id
                 contested = system.contested != SystemStatus.UNCONTESTED
                 
-                # Count systems by owner
-                if owner_faction_id in warzone.systems:
-                    warzone.systems[owner_faction_id] += 1
+                # Count systems by occupier instead of owner
+                if occupier_faction_id in warzone.systems:
+                    warzone.systems[occupier_faction_id] += 1
                 
                 # Count contested systems by occupier
                 if contested and occupier_faction_id in warzone.contested:
