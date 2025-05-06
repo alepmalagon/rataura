@@ -276,7 +276,7 @@ class WebVisualizer:
         
         # Sort the systems based on the sort_by parameter
         if sort_by == "name":
-            sorted_systems = sorted(systems, key=lambda x: x["system"]["name"])
+            sorted_systems = sorted(systems, key=lambda x: x["system_info"]["name"])
         elif sort_by == "region":
             sorted_systems = sorted(systems, key=lambda x: x["system_info"]["region_name"])
         elif sort_by == "owner":
