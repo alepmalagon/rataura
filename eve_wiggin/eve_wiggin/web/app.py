@@ -8,7 +8,8 @@ import json
 import os
 import pickle
 from typing import Dict, Any, List, Optional
-from flask import Flask, render_template, jsonify, request, cross_origin
+from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS, cross_origin
 
 from eve_wiggin.api.fw_api import FWApi
 from eve_wiggin.models.faction_warfare import Warzone, FactionID
@@ -30,6 +31,7 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 fw_api = None
 visualizer = WebVisualizer()
 
+CORS(app)
 
 def init_api():
     """Initialize the FW API."""
