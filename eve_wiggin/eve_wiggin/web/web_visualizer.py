@@ -566,6 +566,11 @@ class WebVisualizer:
         for system in warzone_systems:
             system_id = str(system["system"]["solar_system_id"])
             system_map[system_id] = system
+            
+            # Log capture effort data for debugging
+            capture_effort = system["system"].get("capture_effort", 0.0)
+            capture_category = system["system"].get("capture_effort_category", "Unknown")
+            logger.debug(f"System {system['system_info']['name']} (ID: {system_id}) - Capture Effort: {capture_effort}, Category: {capture_category}")
         
         # Create a mapping of system IDs to solar system data
         solar_system_map = {}
@@ -604,6 +609,10 @@ class WebVisualizer:
             elif system_data["adjacency"] == SystemAdjacency.COMMAND_OPERATIONS:
                 node_shape = "ellipse"
             
+            # Get capture effort data
+            capture_effort = system_data.get("capture_effort", 0.0)
+            capture_effort_category = system_data.get("capture_effort_category", "Unknown")
+            
             # Create node
             node = {
                 "data": {
@@ -619,8 +628,8 @@ class WebVisualizer:
                     "amarr_advantage": system_data.get("amarr_advantage", 0.0),
                     "minmatar_advantage": system_data.get("minmatar_advantage", 0.0),
                     "net_advantage": system_data.get("net_advantage", 0.0),
-                    "capture_effort": system_data.get("capture_effort", 0.0),
-                    "capture_effort_category": system_data.get("capture_effort_category", "Unknown"),
+                    "capture_effort": capture_effort,
+                    "capture_effort_category": capture_effort_category,
                     "region_name": system_info["region_name"]
                 },
                 "style": {

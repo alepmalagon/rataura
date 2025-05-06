@@ -135,16 +135,35 @@ def get_warzone_graph(warzone: str = 'amarr_minmatar') -> Tuple[nx.Graph, Dict[s
         
         # Copy capture effort data to our graph
         if enriched_graph and enriched_graph.number_of_nodes() > 0:
+            # Create a mapping of system names to node IDs in the enriched graph
+            enriched_system_name_to_node = {}
+            for node in enriched_graph.nodes:
+                system_name = enriched_graph.nodes[node].get('solar_system_name')
+                if system_name:
+                    enriched_system_name_to_node[system_name] = node
+            
+            # Log the capture effort values from the enriched graph
+            for node in enriched_graph.nodes:
+                system_name = enriched_graph.nodes[node].get('solar_system_name')
+                capture_effort = enriched_graph.nodes[node].get('capture_effort', 0.0)
+                capture_category = enriched_graph.nodes[node].get('capture_effort_category', 'Unknown')
+                logger.debug(f"Enriched graph - System: {system_name}, Capture Effort: {capture_effort}, Category: {capture_category}")
+            
+            # Copy capture effort data to our graph
             for node in graph.nodes:
                 system_name = graph.nodes[node].get('solar_system_name')
                 
-                # Find the corresponding node in the enriched graph
-                for enriched_node in enriched_graph.nodes:
-                    if enriched_graph.nodes[enriched_node].get('solar_system_name') == system_name:
-                        # Copy capture effort data
-                        graph.nodes[node]['capture_effort'] = enriched_graph.nodes[enriched_node].get('capture_effort', 0.0)
-                        graph.nodes[node]['capture_effort_category'] = enriched_graph.nodes[enriched_node].get('capture_effort_category', 'Unknown')
-                        break
+                if system_name in enriched_system_name_to_node:
+                    enriched_node = enriched_system_name_to_node[system_name]
+                    
+                    # Copy capture effort data
+                    capture_effort = enriched_graph.nodes[enriched_node].get('capture_effort', 0.0)
+                    capture_category = enriched_graph.nodes[enriched_node].get('capture_effort_category', 'Unknown')
+                    
+                    graph.nodes[node]['capture_effort'] = capture_effort
+                    graph.nodes[node]['capture_effort_category'] = capture_category
+                    
+                    logger.debug(f"Copied capture effort for {system_name}: {capture_effort} ({capture_category})")
             
             logger.info("Enriched graph with capture effort data")
         else:
