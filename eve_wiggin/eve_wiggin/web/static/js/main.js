@@ -110,7 +110,8 @@ $(document).ready(function() {
             'Amarr Empire': '#FFD700',  // Gold
             'Minmatar Republic': '#FF4500',  // Red-Orange
             'Caldari State': '#1E90FF',  // Dodger Blue
-            'Gallente Federation': '#32CD32'  // Lime Green
+            'Gallente Federation': '#32CD32',  // Lime Green
+            'Uncontested': '#28a745'  // Green
         };
         
         // Create array of colors based on labels
@@ -140,7 +141,7 @@ $(document).ready(function() {
                 cutout: '70%',  // Make it hollow
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom',
                         labels: {
                             usePointStyle: true,
                             padding: 20
@@ -218,7 +219,7 @@ $(document).ready(function() {
                 cutout: '70%',  // Make it hollow
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom',
                         labels: {
                             usePointStyle: true,
                             padding: 20

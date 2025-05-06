@@ -77,12 +77,16 @@ class WebVisualizer:
         self.html_output.append(f'<h4>{html.escape(warzone_data["name"])}</h4>')
         self.html_output.append(f'<p>Total Systems: {warzone_data["total_systems"]}</p>')
         
-        # Display systems controlled by each faction with a hollow pie chart
+        # Create a row for both charts
+        self.html_output.append('<div class="row">')
+        
+        # First column for Systems Control
+        self.html_output.append('<div class="col-md-6 mb-3">')
         self.html_output.append('<h5>Systems Control</h5>')
         
         # Add canvas for systems control pie chart
         self.html_output.append('<div class="row">')
-        self.html_output.append('<div class="col-md-6 mb-3">')
+        self.html_output.append('<div class="col-md-12 mb-3">')
         self.html_output.append('<canvas id="systemsControlChart" width="400" height="300"></canvas>')
         self.html_output.append('</div>')
         
@@ -96,7 +100,7 @@ class WebVisualizer:
         self.html_output.append(f'<div id="systemsControlData" data-systems=\'{json.dumps(systems_control_data)}\' style="display: none;"></div>')
         
         # Add faction details in cards
-        self.html_output.append('<div class="col-md-6">')
+        self.html_output.append('<div class="col-md-12">')
         for faction_id, count in warzone_data['systems'].items():
             faction_id_int = int(faction_id)
             percentage = warzone_data['control_percentages'].get(faction_id_int, 0)
@@ -111,13 +115,15 @@ class WebVisualizer:
         self.html_output.append('</div>')
         
         self.html_output.append('</div>')  # End row
+        self.html_output.append('</div>')  # End first column
         
-        # Display contested systems with a hollow pie chart
+        # Second column for Contested Systems
+        self.html_output.append('<div class="col-md-6 mb-3">')
         self.html_output.append('<h5>Contested Systems</h5>')
-        self.html_output.append('<div class="row">')
         
         # Add canvas for contested systems pie chart
-        self.html_output.append('<div class="col-md-6 mb-3">')
+        self.html_output.append('<div class="row">')
+        self.html_output.append('<div class="col-md-12 mb-3">')
         self.html_output.append('<canvas id="contestedSystemsChart" width="400" height="300"></canvas>')
         self.html_output.append('</div>')
         
@@ -130,7 +136,7 @@ class WebVisualizer:
         for faction_id, count in warzone_data['contested'].items():
             faction_id_int = int(faction_id)
             faction_name = self.faction_names.get(faction_id_int, f"Faction {faction_id}")
-            contested_systems_data[f"Contested by {faction_name}"] = count
+            contested_systems_data[faction_name] = count
         
         # Add uncontested systems to the data
         contested_systems_data["Uncontested"] = uncontested_systems
@@ -138,7 +144,7 @@ class WebVisualizer:
         self.html_output.append(f'<div id="contestedSystemsData" data-systems=\'{json.dumps(contested_systems_data)}\' style="display: none;"></div>')
         
         # Add faction details in cards
-        self.html_output.append('<div class="col-md-6">')
+        self.html_output.append('<div class="col-md-12">')
         for faction_id, count in warzone_data['contested'].items():
             faction_id_int = int(faction_id)
             faction_color = self.faction_colors.get(faction_id_int, "#FFFFFF")
@@ -160,6 +166,9 @@ class WebVisualizer:
         self.html_output.append('</div>')  # End col
         
         self.html_output.append('</div>')  # End row
+        self.html_output.append('</div>')  # End second column
+        
+        self.html_output.append('</div>')  # End main row
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
     
