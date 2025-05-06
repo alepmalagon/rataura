@@ -268,6 +268,44 @@ def get_graph_metrics():
         return jsonify({"error": str(e)})
 
 
+@app.route('/api/node_positions', methods=['GET', 'POST'])
+def handle_node_positions():
+    """
+    Store or retrieve node positions for the graph.
+    
+    GET: Retrieve saved node positions for a warzone
+    POST: Save node positions for a warzone
+    """
+    try:
+        # Get warzone from request
+        warzone_key = request.args.get('warzone', 'amarr_minmatar')
+        
+        # Define the path to the positions file
+        positions_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "positions")
+        os.makedirs(positions_dir, exist_ok=True)
+        positions_file = os.path.join(positions_dir, f"{warzone_key}_positions.json")
+        
+        if request.method == 'GET':
+            # Retrieve saved positions
+            if os.path.exists(positions_file):
+                with open(positions_file, 'r') as f:
+                    positions = json.load(f)
+                return jsonify({"positions": positions})
+            else:
+                return jsonify({"positions": {}})
+        
+        elif request.method == 'POST':
+            # Save positions
+            positions = request.json.get('positions', {})
+            with open(positions_file, 'w') as f:
+                json.dump(positions, f)
+            return jsonify({"success": True, "message": "Positions saved successfully"})
+    
+    except Exception as e:
+        logger.error(f"Error handling node positions: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
 def run_app(host='0.0.0.0', port=5000, debug=False):
     """
     Run the Flask application.
