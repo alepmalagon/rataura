@@ -671,6 +671,15 @@ $(document).ready(function() {
                 content += `</div>`;
             }
             
+            // Capture Effort (only for Amarr systems)
+            if (nodeData.occupier_faction_id === 500003 && nodeData.hasOwnProperty('capture_effort')) {
+                content += `<div class="info-label">Capture Effort:</div>`;
+                content += `<div class="info-value">`;
+                content += `Effort: <span style="color: ${getCaptureEffortColor(nodeData.capture_effort_category)}">${nodeData.capture_effort.toFixed(2)}</span><br>`;
+                content += `Category: <span style="color: ${getCaptureEffortColor(nodeData.capture_effort_category)}">${nodeData.capture_effort_category}</span>`;
+                content += `</div>`;
+            }
+            
             // Set content
             $('#node-info-content').html(content);
             
@@ -762,12 +771,34 @@ $(document).ready(function() {
     
     // Helper function to get net advantage color
     function getNetAdvantageColor(netAdvantage) {
-        if (netAdvantage > 0.1) {
-            return "#FF4500";  // Red-Orange for Minmatar advantage
-        } else if (netAdvantage < -0.1) {
-            return "#FFD700";  // Gold for Amarr advantage
+        if (netAdvantage > 0.5) {
+            return '#FFD700';  // Gold (Amarr)
+        } else if (netAdvantage < -0.5) {
+            return '#FF4500';  // Red-Orange (Minmatar)
+        } else if (netAdvantage > 0) {
+            return '#FFF8DC';  // Light Gold
+        } else if (netAdvantage < 0) {
+            return '#FFA07A';  // Light Red-Orange
         } else {
-            return "#FFFFFF";  // White for neutral
+            return '#FFFFFF';  // White (neutral)
+        }
+    }
+    
+    // Helper function to get capture effort color
+    function getCaptureEffortColor(category) {
+        switch (category) {
+            case 'Very Easy':
+                return '#32CD32';  // Lime Green
+            case 'Easy':
+                return '#98FB98';  // Pale Green
+            case 'Moderate':
+                return '#FFD700';  // Gold
+            case 'Hard':
+                return '#FFA500';  // Orange
+            case 'Very Hard':
+                return '#FF4500';  // Red-Orange
+            default:
+                return '#FFFFFF';  // White
         }
     }
     
