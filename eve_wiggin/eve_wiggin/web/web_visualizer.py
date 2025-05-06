@@ -37,6 +37,15 @@ class WebVisualizer:
             SystemAdjacency.REARGUARD: "#32CD32",  # Lime Green
         }
         
+        # Define capture effort colors
+        self.capture_effort_colors = {
+            "Very Easy": "#32CD32",  # Lime Green
+            "Easy": "#98FB98",  # Pale Green
+            "Moderate": "#FFD700",  # Gold
+            "Hard": "#FFA500",  # Orange
+            "Very Hard": "#FF4500",  # Red-Orange
+        }
+        
         # Define faction names
         self.faction_names = {
             FactionID.AMARR_EMPIRE: "Amarr Empire",
@@ -414,10 +423,10 @@ class WebVisualizer:
         Display detailed information about a system.
         
         Args:
-            system (Dict[str, Any]): The system to display.
+            system (Dict[str, Any]): The system data to display.
         """
-        system_info = system["system_info"]
         system_data = system["system"]
+        system_info = system["system_info"]
         
         self.html_output.append('<div class="card mb-4">')
         self.html_output.append('<div class="card-header bg-primary text-white">')
@@ -426,39 +435,42 @@ class WebVisualizer:
         self.html_output.append('<div class="card-body">')
         
         # System information
+        self.html_output.append('<div class="row">')
+        self.html_output.append('<div class="col-md-6">')
+        
+        # Basic system info
+        self.html_output.append('<div class="card mb-3">')
+        self.html_output.append('<div class="card-body">')
+        self.html_output.append('<h5>System Information</h5>')
         self.html_output.append(f'<p>Region: {html.escape(system_info["region_name"])}</p>')
         self.html_output.append(f'<p>Constellation: {html.escape(system_info["constellation_name"])}</p>')
         
-        # Faction information
+        # Owner and occupier
         owner_faction_id = system_data["owner_faction_id"]
-        owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
-        owner_name = system["owner_faction_name"]
-        
         occupier_faction_id = system_data["occupier_faction_id"]
-        occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
-        occupier_name = system["occupier_faction_name"]
+        owner_name = self.faction_names.get(owner_faction_id, f"Faction {owner_faction_id}")
+        occupier_name = self.faction_names.get(occupier_faction_id, f"Faction {occupier_faction_id}")
         
-        self.html_output.append(f'<p>Owner Faction: <span style="color: {owner_color}">{html.escape(owner_name)}</span></p>')
-        self.html_output.append(f'<p>Occupier Faction: <span style="color: {occupier_color}">{html.escape(occupier_name)}</span></p>')
-        
-        # Contest information
-        contest_status = system_data["contested"]
-        status_color = "danger" if contest_status == SystemStatus.CONTESTED else "success"
-        
-        self.html_output.append(f'<p>Contested Status: <span class="badge bg-{status_color}">{contest_status}</span></p>')
+        self.html_output.append(f'<p>Owner: {html.escape(owner_name)}</p>')
+        self.html_output.append(f'<p>Occupier: {html.escape(occupier_name)}</p>')
         
         # Victory points
-        vp = system_data["victory_points"]
-        vp_threshold = system_data["victory_points_threshold"]
+        victory_points = system_data["victory_points"]
+        victory_points_threshold = system_data["victory_points_threshold"]
         contest_percent = system_data["contest_percent"]
         
-        contest_color = self._get_contest_color(contest_percent)
+        self.html_output.append('<h5>Victory Points</h5>')
+        self.html_output.append(f'<p>{victory_points} / {victory_points_threshold} ({contest_percent:.1f}%)</p>')
         
-        self.html_output.append(f'<p>Victory Points: {vp}/{vp_threshold} (<span style="color: {contest_color}">{contest_percent:.1f}%</span>)</p>')
+        # Progress bar for victory points
+        progress_color = "success"
+        if contest_percent > 50:
+            progress_color = "warning"
+        if contest_percent > 75:
+            progress_color = "danger"
         
-        # Add progress bar for victory points
         self.html_output.append('<div class="progress mb-3">')
-        self.html_output.append(f'<div class="progress-bar" role="progressbar" style="width: {contest_percent}%; background-color: {contest_color};" aria-valuenow="{contest_percent}" aria-valuemin="0" aria-valuemax="100">{contest_percent:.1f}%</div>')
+        self.html_output.append(f'<div class="progress-bar bg-{progress_color}" role="progressbar" style="width: {contest_percent}%" aria-valuenow="{contest_percent}" aria-valuemin="0" aria-valuemax="100"></div>')
         self.html_output.append('</div>')
         
         # Advantage information
@@ -510,6 +522,37 @@ class WebVisualizer:
             self.html_output.append('<p><small class="text-muted">Command Operations systems have a medium contestation rate</small></p>')
         elif adjacency == SystemAdjacency.REARGUARD:
             self.html_output.append('<p><small class="text-muted">Rearguard systems have the slowest contestation rate</small></p>')
+        
+        # Capture Effort information (only for Amarr systems)
+        if occupier_faction_id == 500003:  # Amarr Empire
+            capture_effort = system_data.get("capture_effort", 0.0)
+            capture_effort_category = system_data.get("capture_effort_category", "Unknown")
+            
+            # Get the color for the capture effort category
+            category_color = self.capture_effort_colors.get(capture_effort_category, "#FFFFFF")
+            
+            self.html_output.append('<h5>Capture Effort (Minmatar)</h5>')
+            self.html_output.append(f'<p>Effort: <span style="color: {category_color}">{capture_effort:.2f}</span></p>')
+            self.html_output.append(f'<p>Category: <span style="color: {category_color}">{capture_effort_category}</span></p>')
+            
+            # Progress bar for capture effort
+            self.html_output.append('<div class="progress mb-3">')
+            
+            # Determine progress bar color based on category
+            progress_color = "success"  # Default green for Very Easy
+            if capture_effort_category == "Easy":
+                progress_color = "info"
+            elif capture_effort_category == "Moderate":
+                progress_color = "warning"
+            elif capture_effort_category in ["Hard", "Very Hard"]:
+                progress_color = "danger"
+            
+            self.html_output.append(f'<div class="progress-bar bg-{progress_color}" role="progressbar" style="width: {capture_effort}%" aria-valuenow="{capture_effort}" aria-valuemin="0" aria-valuemax="100"></div>')
+            self.html_output.append('</div>')
+            
+            # Explain what the capture effort means
+            self.html_output.append('<p><small class="text-muted">Capture Effort represents how difficult it would be for Minmatar forces to capture this Amarr system.</small></p>')
+            self.html_output.append('<p><small class="text-muted">Factors: Distance from Vard, Faction Advantage, Victory Points, and Adjacency Type</small></p>')
         
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
@@ -592,7 +635,9 @@ class WebVisualizer:
                     "amarr_advantage": system_data.get("amarr_advantage", 0.0),
                     "minmatar_advantage": system_data.get("minmatar_advantage", 0.0),
                     "net_advantage": system_data.get("net_advantage", 0.0),
-                    "region_name": system_info["region_name"]
+                    "capture_effort": system_data.get("capture_effort", 0.0),
+                    "capture_effort_category": system_data.get("capture_effort_category", "Unknown"),
+                    "region_name": system_info[\"region_name\"]
                 },
                 "style": {
                     "background-color": occupier_color,  # Use occupier color for node

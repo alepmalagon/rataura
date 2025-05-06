@@ -10,6 +10,7 @@ import networkx as nx
 
 from eve_wiggin.api.esi_client import get_esi_client
 from eve_wiggin.api.warzone_api_client import get_warzone_api_client
+from eve_wiggin.services.capture_effort_analyzer import get_capture_effort_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class FWGraphBuilder:
         """
         self.esi_client = get_esi_client()
         self.warzone_api_client = get_warzone_api_client()
+        self.capture_effort_analyzer = get_capture_effort_analyzer()
         
     async def build_graph(self, warzone: str = "amarr_minmatar") -> nx.Graph:
         """
@@ -106,7 +108,11 @@ class FWGraphBuilder:
                 net_advantage=0.0,  # Will be populated from warzone API
                 
                 # Default adjacency
-                adjacency="rearguard"  # Will be determined based on graph analysis
+                adjacency="rearguard",  # Will be determined based on graph analysis
+                
+                # Capture effort metrics
+                capture_effort=0.0,  # Will be populated by capture effort analyzer
+                capture_effort_category="Unknown"  # Will be populated by capture effort analyzer
             )
             
             # Add edges to the graph - SOURCE: ama_min.pickle for system neighbors
@@ -133,6 +139,11 @@ class FWGraphBuilder:
         
         # Determine adjacency for each system
         self._determine_adjacency(graph)
+        
+        # Analyze capture effort for Amarr systems
+        logger.info("Analyzing capture effort for Amarr systems...")
+        capture_effort_analyzer = get_capture_effort_analyzer()
+        capture_effort_analyzer.analyze_capture_effort(graph)
         
         return graph
     
