@@ -21,6 +21,10 @@ $(document).ready(function() {
     // Global variable to track if positions have been modified
     let positionsModified = false;
     
+    // Global variables for charts
+    let systemsControlChart = null;
+    let contestedSystemsChart = null;
+    
     // Handle analyze button click
     $('#analyze-btn').click(function() {
         // Show loading indicator
@@ -60,6 +64,9 @@ $(document).ready(function() {
                     
                     // Add event listeners to system links
                     addSystemLinkListeners();
+                    
+                    // Initialize pie charts if they exist
+                    initializeCharts();
                 }
             },
             error: function(xhr, status, error) {
@@ -71,6 +78,174 @@ $(document).ready(function() {
             }
         });
     });
+    
+    // Function to initialize pie charts
+    function initializeCharts() {
+        // Initialize systems control chart if it exists
+        if ($('#systemsControlChart').length > 0) {
+            initializeSystemsControlChart();
+        }
+        
+        // Initialize contested systems chart if it exists
+        if ($('#contestedSystemsChart').length > 0) {
+            initializeContestedSystemsChart();
+        }
+    }
+    
+    // Function to initialize systems control chart
+    function initializeSystemsControlChart() {
+        // Get the chart canvas
+        const ctx = document.getElementById('systemsControlChart').getContext('2d');
+        
+        // Get the data from the hidden div
+        const systemsControlDataElement = document.getElementById('systemsControlData');
+        const systemsControlData = JSON.parse(systemsControlDataElement.getAttribute('data-systems'));
+        
+        // Extract labels and data
+        const labels = Object.keys(systemsControlData);
+        const data = Object.values(systemsControlData);
+        
+        // Define colors for each faction
+        const colors = {
+            'Amarr Empire': '#FFD700',  // Gold
+            'Minmatar Republic': '#FF4500',  // Red-Orange
+            'Caldari State': '#1E90FF',  // Dodger Blue
+            'Gallente Federation': '#32CD32'  // Lime Green
+        };
+        
+        // Create array of colors based on labels
+        const backgroundColors = labels.map(label => colors[label] || '#CCCCCC');
+        
+        // Destroy existing chart if it exists
+        if (systemsControlChart) {
+            systemsControlChart.destroy();
+        }
+        
+        // Create the chart
+        systemsControlChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: backgroundColors,
+                    borderWidth: 1,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',  // Make it hollow
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Systems Controlled by Faction',
+                        font: {
+                            size: 16
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} systems (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Function to initialize contested systems chart
+    function initializeContestedSystemsChart() {
+        // Get the chart canvas
+        const ctx = document.getElementById('contestedSystemsChart').getContext('2d');
+        
+        // Get the data from the hidden div
+        const contestedSystemsDataElement = document.getElementById('contestedSystemsData');
+        const contestedSystemsData = JSON.parse(contestedSystemsDataElement.getAttribute('data-systems'));
+        
+        // Extract labels and data
+        const labels = Object.keys(contestedSystemsData);
+        const data = Object.values(contestedSystemsData);
+        
+        // Define colors for each category
+        const colors = {
+            'Contested by Amarr Empire': '#FFD700',  // Gold
+            'Contested by Minmatar Republic': '#FF4500',  // Red-Orange
+            'Contested by Caldari State': '#1E90FF',  // Dodger Blue
+            'Contested by Gallente Federation': '#32CD32',  // Lime Green
+            'Uncontested': '#28a745'  // Green
+        };
+        
+        // Create array of colors based on labels
+        const backgroundColors = labels.map(label => colors[label] || '#CCCCCC');
+        
+        // Destroy existing chart if it exists
+        if (contestedSystemsChart) {
+            contestedSystemsChart.destroy();
+        }
+        
+        // Create the chart
+        contestedSystemsChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: backgroundColors,
+                    borderWidth: 1,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',  // Make it hollow
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Contested vs Uncontested Systems',
+                        font: {
+                            size: 16
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} systems (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
     
     // Handle system search button click
     $('#search-btn').click(function() {
