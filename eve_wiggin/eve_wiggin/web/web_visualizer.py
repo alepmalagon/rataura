@@ -637,7 +637,7 @@ class WebVisualizer:
                     "net_advantage": system_data.get("net_advantage", 0.0),
                     "capture_effort": system_data.get("capture_effort", 0.0),
                     "capture_effort_category": system_data.get("capture_effort_category", "Unknown"),
-                    "region_name": system_info[\"region_name\"]
+                    "region_name": system_info["region_name"]
                 },
                 "style": {
                     "background-color": occupier_color,  # Use occupier color for node
