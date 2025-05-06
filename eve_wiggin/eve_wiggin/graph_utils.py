@@ -128,6 +128,30 @@ def get_warzone_graph(warzone: str = 'amarr_minmatar') -> Tuple[nx.Graph, Dict[s
     # Convert to NetworkX graph
     graph, system_name_to_index = convert_to_networkx(systems_data)
     
+    # Enrich the graph with capture effort data
+    try:
+        # Get the enriched graph with capture effort data
+        enriched_graph = get_enriched_warzone_graph()
+        
+        # Copy capture effort data to our graph
+        if enriched_graph and enriched_graph.number_of_nodes() > 0:
+            for node in graph.nodes:
+                system_name = graph.nodes[node].get('solar_system_name')
+                
+                # Find the corresponding node in the enriched graph
+                for enriched_node in enriched_graph.nodes:
+                    if enriched_graph.nodes[enriched_node].get('solar_system_name') == system_name:
+                        # Copy capture effort data
+                        graph.nodes[node]['capture_effort'] = enriched_graph.nodes[enriched_node].get('capture_effort', 0.0)
+                        graph.nodes[node]['capture_effort_category'] = enriched_graph.nodes[enriched_node].get('capture_effort_category', 'Unknown')
+                        break
+            
+            logger.info("Enriched graph with capture effort data")
+        else:
+            logger.warning("Could not enrich graph with capture effort data")
+    except Exception as e:
+        logger.error(f"Error enriching graph with capture effort data: {e}", exc_info=True)
+    
     return graph, system_name_to_index, systems_data
 
 def analyze_graph(G: nx.Graph) -> Dict[str, Any]:
@@ -207,4 +231,3 @@ def get_enriched_warzone_graph() -> nx.Graph:
     except Exception as e:
         logger.error(f"Error getting enriched warzone graph: {e}", exc_info=True)
         return nx.Graph()
-

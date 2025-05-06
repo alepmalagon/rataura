@@ -163,6 +163,18 @@ async def get_graph_data():
             # Get the NetworkX graph for the warzone
             graph, system_name_to_index, systems_data = get_warzone_graph(warzone_key)
             
+            # Enrich warzone_systems with capture effort data from the graph
+            for system in warzone_systems:
+                system_name = system["system_info"]["name"]
+                
+                # Find the corresponding node in the graph
+                for node in graph.nodes:
+                    if graph.nodes[node].get("solar_system_name") == system_name:
+                        # Copy capture effort data to the warzone system
+                        system["system"]["capture_effort"] = graph.nodes[node].get("capture_effort", 0.0)
+                        system["system"]["capture_effort_category"] = graph.nodes[node].get("capture_effort_category", "Unknown")
+                        break
+            
             # Generate graph data for visualization
             graph_data = visualizer.generate_graph_data(warzone_systems, systems_data, filter_type)
             

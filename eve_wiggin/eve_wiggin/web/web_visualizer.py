@@ -241,7 +241,7 @@ class WebVisualizer:
     
     def display_systems_table(self, systems: List[Dict[str, Any]], sort_by: str = "name") -> None:
         """
-        Display a table of faction warfare systems.
+        Display a table of all systems in the warzone.
         
         Args:
             systems (List[Dict[str, Any]]): The systems to display.
@@ -249,134 +249,118 @@ class WebVisualizer:
         """
         self.html_output.append('<div class="card mb-4">')
         self.html_output.append('<div class="card-header bg-primary text-white">')
-        self.html_output.append('<h3>Faction Warfare Systems</h3>')
+        self.html_output.append('<h3>Systems</h3>')
         self.html_output.append('</div>')
         self.html_output.append('<div class="card-body">')
         
-        # Sort systems by the specified field
-        if sort_by == "name":
-            sorted_systems = sorted(systems, key=lambda s: s["system_info"]["name"])
-        elif sort_by == "contest":
-            sorted_systems = sorted(systems, key=lambda s: s["system"]["contest_percent"], reverse=True)
-        elif sort_by == "region":
-            sorted_systems = sorted(systems, key=lambda s: (s["system_info"]["region_name"] or "", s["system_info"]["name"]))
-        else:
-            sorted_systems = systems
-        
-        # Create table
+        # Create a table for the systems
         self.html_output.append('<div class="table-responsive">')
-        self.html_output.append('<table class="table table-striped table-hover">')
-        self.html_output.append('<thead class="thead-dark">')
+        self.html_output.append('<table class="table table-striped table-hover" id="systems-table">')
+        self.html_output.append('<thead>')
         self.html_output.append('<tr>')
         self.html_output.append('<th>System</th>')
         self.html_output.append('<th>Region</th>')
+        self.html_output.append('<th>Owner</th>')
         self.html_output.append('<th>Occupier</th>')
         self.html_output.append('<th>Adjacency</th>')
-        self.html_output.append('<th>Progress</th>')
+        self.html_output.append('<th>Contested</th>')
         self.html_output.append('<th>Victory Points</th>')
-        self.html_output.append('<th>Amarr Adv.</th>')
-        self.html_output.append('<th>Minmatar Adv.</th>')
-        self.html_output.append('<th>Net Adv.</th>')
+        self.html_output.append('<th>Amarr Advantage</th>')
+        self.html_output.append('<th>Minmatar Advantage</th>')
+        self.html_output.append('<th>Net Advantage</th>')
+        self.html_output.append('<th>Capture Effort</th>')
+        self.html_output.append('<th>Effort Category</th>')
         self.html_output.append('</tr>')
         self.html_output.append('</thead>')
         self.html_output.append('<tbody>')
         
-        # Group systems by region for better organization
-        regions = {}
-        for system in sorted_systems:
-            region_name = system["system_info"]["region_name"] or "Unknown Region"
-            if region_name not in regions:
-                regions[region_name] = []
-            regions[region_name].append(system)
+        # Sort the systems based on the sort_by parameter
+        if sort_by == "name":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["name"])
+        elif sort_by == "region":
+            sorted_systems = sorted(systems, key=lambda x: x["system_info"]["region_name"])
+        elif sort_by == "owner":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["owner_faction_id"])
+        elif sort_by == "occupier":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["occupier_faction_id"])
+        elif sort_by == "adjacency":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["adjacency"])
+        elif sort_by == "contested":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["contested"], reverse=True)
+        elif sort_by == "victory_points":
+            sorted_systems = sorted(systems, key=lambda x: x["system"]["victory_points"], reverse=True)
+        elif sort_by == "amarr_advantage":
+            sorted_systems = sorted(systems, key=lambda x: x["system"].get("amarr_advantage", 0), reverse=True)
+        elif sort_by == "minmatar_advantage":
+            sorted_systems = sorted(systems, key=lambda x: x["system"].get("minmatar_advantage", 0), reverse=True)
+        elif sort_by == "net_advantage":
+            sorted_systems = sorted(systems, key=lambda x: x["system"].get("net_advantage", 0), reverse=True)
+        elif sort_by == "capture_effort":
+            sorted_systems = sorted(systems, key=lambda x: x["system"].get("capture_effort", 0))
+        else:
+            sorted_systems = systems
         
-        # Display systems by region
-        for region_name, region_systems in regions.items():
-            # Add region header
-            self.html_output.append(f'<tr class="table-secondary"><td colspan="10"><strong>{html.escape(region_name)}</strong></td></tr>')
+        # Add rows for each system
+        for system_data in sorted_systems:
+            system = system_data["system"]
+            system_info = system_data["system_info"]
             
-            # Add systems in this region
-            for system in region_systems:
-                system_data = system["system"]
-                system_info = system["system_info"]
-                
-                # Get system name
-                system_name = system_info["name"]
-                
-                # Get owner and occupier faction names
-                owner_faction_id = system_data["owner_faction_id"]
-                occupier_faction_id = system_data["occupier_faction_id"]
-                owner_faction_name = system.get("owner_faction_name", f"Faction {owner_faction_id}")
-                occupier_faction_name = system.get("occupier_faction_name", f"Faction {occupier_faction_id}")
-                
-                # Get owner and occupier faction colors
-                owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
-                occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
-                
-                # Get adjacency type and badge color
-                adjacency = system_data["adjacency"]
-                badge_color = self._get_adjacency_badge_color(adjacency)
-                
-                # Get contested status
-                contested = system_data["contested"]
-                contest_percent = system_data["contest_percent"]
-                
-                # Get victory points
-                victory_points = system_data["victory_points"]
-                victory_points_threshold = system_data["victory_points_threshold"]
-                
-                # Get advantage data
-                amarr_advantage = system_data.get("amarr_advantage", 0.0)
-                minmatar_advantage = system_data.get("minmatar_advantage", 0.0)
-                net_advantage = system_data.get("net_advantage", 0.0)
-                
-                # Determine advantage color
-                if net_advantage > 0.1:
-                    advantage_color = "#FF4500"  # Red-Orange for Minmatar advantage
-                elif net_advantage < -0.1:
-                    advantage_color = "#FFD700"  # Gold for Amarr advantage
-                else:
-                    advantage_color = "#FFFFFF"  # White for neutral
-                
-                # Add system row
-                self.html_output.append('<tr>')
-                
-                # System name
-                self.html_output.append(f'<td><a href="#" class="system-link" data-system="{html.escape(system_name)}">{html.escape(system_name)}</a></td>')
-                
-                # Region
-                self.html_output.append(f'<td>{html.escape(system_info["region_name"] or "")}</td>')
-                
-                # Occupier faction
-                self.html_output.append(f'<td><span style="color: {occupier_color};">{html.escape(occupier_faction_name)}</span></td>')
-                
-                # Adjacency
-                self.html_output.append(f'<td><span class="badge bg-{badge_color}">{adjacency}</span></td>')
-                
-                # Contested status
-                if contested:
-                    contest_color = "danger" if contest_percent > 50 else "warning"
-                    self.html_output.append(f'<td><div class="progress" style="height: 20px;"><div class="progress-bar bg-{contest_color}" role="progressbar" style="width: {contest_percent}%;" aria-valuenow="{contest_percent}" aria-valuemin="0" aria-valuemax="100">{contest_percent:.1f}%</div></div></td>')
-                else:
-                    self.html_output.append('<td><span class="badge bg-success">Uncontested</span></td>')
-                
-                # Victory points
-                self.html_output.append(f'<td>{victory_points}</td>')
+            # Get faction names
+            owner_faction_id = system["owner_faction_id"]
+            occupier_faction_id = system["occupier_faction_id"]
+            owner_faction_name = self.faction_names.get(owner_faction_id, f"Faction {owner_faction_id}")
+            occupier_faction_name = self.faction_names.get(occupier_faction_id, f"Faction {occupier_faction_id}")
             
-                
-                # Amarr advantage
-                self.html_output.append(f'<td>{amarr_advantage:.2f}</td>')
-                
-                # Minmatar advantage
-                self.html_output.append(f'<td>{minmatar_advantage:.2f}</td>')
-                
-                # Net advantage
-                self.html_output.append(f'<td><span style="color: {advantage_color};">{net_advantage:.2f}</span></td>')
-                
-                self.html_output.append('</tr>')
+            # Get faction colors
+            owner_color = self.faction_colors.get(owner_faction_id, "#FFFFFF")
+            occupier_color = self.faction_colors.get(occupier_faction_id, "#FFFFFF")
+            
+            # Get adjacency
+            adjacency = system["adjacency"]
+            adjacency_color = self.adjacency_colors.get(adjacency, "#FFFFFF")
+            
+            # Get contested status
+            contested = system["contested"]
+            contested_text = "Yes" if contested else "No"
+            contested_color = "#FF0000" if contested else "#32CD32"
+            
+            # Get victory points
+            victory_points = system["victory_points"]
+            victory_points_threshold = system["victory_points_threshold"]
+            victory_points_percentage = (victory_points / victory_points_threshold * 100) if victory_points_threshold > 0 else 0
+            
+            # Get advantage values
+            amarr_advantage = system.get("amarr_advantage", 0)
+            minmatar_advantage = system.get("minmatar_advantage", 0)
+            net_advantage = system.get("net_advantage", 0)
+            
+            # Get capture effort values
+            capture_effort = system.get("capture_effort", 0)
+            capture_effort_category = system.get("capture_effort_category", "Unknown")
+            
+            # Get category color
+            category_color = self.capture_effort_colors.get(capture_effort_category, "#FFFFFF")
+            
+            # Add row
+            self.html_output.append('<tr>')
+            self.html_output.append(f'<td><a href="#" class="system-link" data-system-id="{system["solar_system_id"]}">{html.escape(system_info["name"])}</a></td>')
+            self.html_output.append(f'<td>{html.escape(system_info["region_name"])}</td>')
+            self.html_output.append(f'<td style="color: {owner_color};">{html.escape(owner_faction_name)}</td>')
+            self.html_output.append(f'<td style="color: {occupier_color};">{html.escape(occupier_faction_name)}</td>')
+            self.html_output.append(f'<td style="color: {adjacency_color};">{adjacency}</td>')
+            self.html_output.append(f'<td style="color: {contested_color};">{contested_text}</td>')
+            self.html_output.append(f'<td>{victory_points} / {victory_points_threshold} ({victory_points_percentage:.1f}%)</td>')
+            self.html_output.append(f'<td>{amarr_advantage:.2f}</td>')
+            self.html_output.append(f'<td>{minmatar_advantage:.2f}</td>')
+            self.html_output.append(f'<td>{net_advantage:.2f}</td>')
+            self.html_output.append(f'<td style="color: {category_color};">{capture_effort:.2f}</td>')
+            self.html_output.append(f'<td style="color: {category_color};">{capture_effort_category}</td>')
+            self.html_output.append('</tr>')
         
         self.html_output.append('</tbody>')
         self.html_output.append('</table>')
         self.html_output.append('</div>')  # End table-responsive
+        
         self.html_output.append('</div>')  # End card-body
         self.html_output.append('</div>')  # End card
     
