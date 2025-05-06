@@ -185,11 +185,11 @@ $(document).ready(function() {
         
         // Define colors for each category
         const colors = {
-            'Contested by Amarr Empire': '#FFD700',  // Gold
-            'Contested by Minmatar Republic': '#FF4500',  // Red-Orange
-            'Contested by Caldari State': '#1E90FF',  // Dodger Blue
-            'Contested by Gallente Federation': '#32CD32',  // Lime Green
-            'Uncontested': '#28a745'  // Green
+            'Amarr Empire': '#FFD700',  // Gold
+            'Minmatar Republic': '#FF4500',  // Red-Orange
+            'Caldari State': '#1E90FF',  // Dodger Blue
+            'Gallente Federation': '#32CD32',  // Lime Green
+            'Uncontested': '#CCCCCC'  // Gray for uncontested
         };
         
         // Create array of colors based on labels
