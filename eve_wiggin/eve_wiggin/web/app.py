@@ -8,7 +8,7 @@ import json
 import os
 import pickle
 from typing import Dict, Any, List, Optional
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, cross_origin
 
 from eve_wiggin.api.fw_api import FWApi
 from eve_wiggin.models.faction_warfare import Warzone, FactionID
@@ -348,6 +348,55 @@ def handle_default_node_positions():
     except Exception as e:
         logger.error(f"Error handling default node positions: {e}", exc_info=True)
         return jsonify({"error": str(e)})
+
+
+@app.route('/api/systems/<system_id>')
+@cross_origin()
+async def get_system(system_id):
+    """
+    Get details for a specific system.
+    """
+    try:
+        # Get the NetworkX graph for the warzone
+        graph = await get_graph()
+        
+        # Find the system in the graph
+        for node in graph.nodes:
+            if str(graph.nodes[node].get('solar_system_id')) == system_id:
+                system_data = dict(graph.nodes[node])
+                
+                # Add additional data
+                system_data['node_id'] = node
+                
+                # Format numeric values
+                if 'amarr_advantage' in system_data:
+                    system_data['amarr_advantage'] = round(system_data['amarr_advantage'], 2)
+                if 'minmatar_advantage' in system_data:
+                    system_data['minmatar_advantage'] = round(system_data['minmatar_advantage'], 2)
+                if 'net_advantage' in system_data:
+                    system_data['net_advantage'] = round(system_data['net_advantage'], 2)
+                if 'capture_effort' in system_data:
+                    system_data['capture_effort'] = round(system_data['capture_effort'], 2)
+                
+                # Get adjacent systems
+                adjacent_systems = []
+                for neighbor in graph.neighbors(node):
+                    adjacent_systems.append({
+                        'id': str(graph.nodes[neighbor].get('solar_system_id')),
+                        'name': graph.nodes[neighbor].get('solar_system_name'),
+                        'occupier_faction_id': graph.nodes[neighbor].get('occupier_faction_id')
+                    })
+                
+                system_data['adjacent_systems'] = adjacent_systems
+                
+                return jsonify(system_data)
+        
+        # If system not found
+        return jsonify({'error': f'System with ID {system_id} not found'}), 404
+    
+    except Exception as e:
+        logger.error(f"Error getting system details: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 def run_app(host='0.0.0.0', port=5000, debug=False):
