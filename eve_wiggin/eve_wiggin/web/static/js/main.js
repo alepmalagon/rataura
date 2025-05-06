@@ -444,21 +444,27 @@ $(document).ready(function() {
             
             // Position the info card
             const infoCard = $('#node-info-card');
-            let leftPos = containerRect.left + position.x + 20;
-            let topPos = containerRect.top + position.y - 20;
+            
+            // Calculate position relative to the graph container
+            // This is the key change - use position relative to the container, not the page
+            let leftPos = position.x + 20;
+            let topPos = position.y - 20;
             
             // Adjust position to keep the card within the viewport
             const cardWidth = 300;
             const cardHeight = infoCard.outerHeight() || 300;
             
-            if (leftPos + cardWidth > window.innerWidth) {
-                leftPos = containerRect.left + position.x - cardWidth - 20;
+            // Check if the card would go off the right edge of the container
+            if (leftPos + cardWidth > containerRect.width) {
+                leftPos = position.x - cardWidth - 20;
             }
             
-            if (topPos + cardHeight > window.innerHeight) {
-                topPos = window.innerHeight - cardHeight - 10;
+            // Check if the card would go off the bottom of the container
+            if (topPos + cardHeight > containerRect.height) {
+                topPos = containerRect.height - cardHeight - 10;
             }
             
+            // Check if the card would go off the top of the container
             if (topPos < 0) {
                 topPos = 10;
             }
