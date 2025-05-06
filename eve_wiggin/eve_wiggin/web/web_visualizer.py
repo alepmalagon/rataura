@@ -217,9 +217,8 @@ class WebVisualizer:
         self.html_output.append('<th>Region</th>')
         self.html_output.append('<th>Occupier</th>')
         self.html_output.append('<th>Adjacency</th>')
-        self.html_output.append('<th>Status</th>')
+        self.html_output.append('<th>Progress</th>')
         self.html_output.append('<th>Victory Points</th>')
-        self.html_output.append('<th>VP Threshold</th>')
         self.html_output.append('<th>Amarr Adv.</th>')
         self.html_output.append('<th>Minmatar Adv.</th>')
         self.html_output.append('<th>Net Adv.</th>')
@@ -292,9 +291,6 @@ class WebVisualizer:
                 # Region
                 self.html_output.append(f'<td>{html.escape(system_info["region_name"] or "")}</td>')
                 
-                # Owner faction
-                self.html_output.append(f'<td><span style="color: {owner_color};">{html.escape(owner_faction_name)}</span></td>')
-                
                 # Occupier faction
                 self.html_output.append(f'<td><span style="color: {occupier_color};">{html.escape(occupier_faction_name)}</span></td>')
                 
@@ -310,9 +306,7 @@ class WebVisualizer:
                 
                 # Victory points
                 self.html_output.append(f'<td>{victory_points}</td>')
-                
-                # Victory points threshold
-                self.html_output.append(f'<td>{victory_points_threshold}</td>')
+            
                 
                 # Amarr advantage
                 self.html_output.append(f'<td>{amarr_advantage:.2f}</td>')
