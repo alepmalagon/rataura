@@ -377,9 +377,98 @@ $(document).ready(function() {
         // Add hover effects
         cy.on('mouseover', 'node', function(evt) {
             const node = evt.target;
+            const nodeData = node.data();
+            const position = node.renderedPosition();
+            const containerRect = document.getElementById('graph-container').getBoundingClientRect();
+            
+            // Update node style
             node.style({
                 'border-width': 4,
                 'border-color': '#fff'
+            });
+            
+            // Populate info card
+            $('#node-info-header').text(nodeData.label);
+            
+            // Create content for the info card
+            let content = '';
+            
+            // Region
+            content += `<div class="info-label">Region:</div>`;
+            content += `<div class="info-value">${nodeData.region_name}</div>`;
+            
+            // Owner and Occupier
+            content += `<div class="info-label">Owner:</div>`;
+            content += `<div class="info-value">
+                <span class="info-badge" style="background-color: ${getFactionColor(nodeData.owner_faction_id)}">
+                    ${nodeData.owner_faction_name}
+                </span>
+            </div>`;
+            
+            content += `<div class="info-label">Occupier:</div>`;
+            content += `<div class="info-value">
+                <span class="info-badge" style="background-color: ${getFactionColor(nodeData.occupier_faction_id)}">
+                    ${nodeData.occupier_faction_name}
+                </span>
+            </div>`;
+            
+            // Adjacency type
+            content += `<div class="info-label">Adjacency Type:</div>`;
+            content += `<div class="info-value">
+                <span class="info-badge" style="background-color: ${getAdjacencyColor(nodeData.adjacency)}">
+                    ${nodeData.adjacency}
+                </span>
+            </div>`;
+            
+            // Contest status
+            content += `<div class="info-label">Status:</div>`;
+            content += `<div class="info-value">
+                <span class="info-badge" style="background-color: ${nodeData.contested === 'CONTESTED' ? '#FF0000' : '#28a745'}">
+                    ${nodeData.contested === 'CONTESTED' ? 'CONTESTED' : 'STABLE'}
+                </span>
+                ${nodeData.contest_percent ? `(${nodeData.contest_percent.toFixed(1)}%)` : ''}
+            </div>`;
+            
+            // Advantage
+            if (nodeData.hasOwnProperty('amarr_advantage') && nodeData.hasOwnProperty('minmatar_advantage')) {
+                content += `<div class="info-label">Advantage:</div>`;
+                content += `<div class="info-value">`;
+                content += `Amarr: <span style="color: #FFD700">${nodeData.amarr_advantage.toFixed(2)}</span><br>`;
+                content += `Minmatar: <span style="color: #FF4500">${nodeData.minmatar_advantage.toFixed(2)}</span><br>`;
+                content += `Net: <span style="color: ${getNetAdvantageColor(nodeData.net_advantage)}">${nodeData.net_advantage.toFixed(2)}</span>`;
+                content += `</div>`;
+            }
+            
+            // Set content
+            $('#node-info-content').html(content);
+            
+            // Position the info card
+            const infoCard = $('#node-info-card');
+            let leftPos = containerRect.left + position.x + 20;
+            let topPos = containerRect.top + position.y - 20;
+            
+            // Adjust position to keep the card within the viewport
+            const cardWidth = 300;
+            const cardHeight = infoCard.outerHeight() || 300;
+            
+            if (leftPos + cardWidth > window.innerWidth) {
+                leftPos = containerRect.left + position.x - cardWidth - 20;
+            }
+            
+            if (topPos + cardHeight > window.innerHeight) {
+                topPos = window.innerHeight - cardHeight - 10;
+            }
+            
+            if (topPos < 0) {
+                topPos = 10;
+            }
+            
+            // Set position and show the card
+            infoCard.css({
+                left: leftPos + 'px',
+                top: topPos + 'px',
+                display: 'block',
+                opacity: 1
             });
         });
         
@@ -389,6 +478,12 @@ $(document).ready(function() {
             node.style({
                 'border-width': node.data('contested') === 'CONTESTED' ? 4 : 2,
                 'border-color': node.data('contested') === 'CONTESTED' ? '#FF0000' : '#000'
+            });
+            
+            // Hide info card
+            $('#node-info-card').css({
+                opacity: 0,
+                display: 'none'
             });
         });
         
@@ -402,6 +497,40 @@ $(document).ready(function() {
                 $('#position-reminder').fadeOut();
             }, 3000);
         });
+    }
+    
+    // Helper function to get faction color
+    function getFactionColor(factionId) {
+        const factionColors = {
+            500001: "#FFD700",  // Amarr Empire
+            500002: "#FF4500",  // Minmatar Republic
+            500003: "#1E90FF",  // Caldari State
+            500004: "#32CD32"   // Gallente Federation
+        };
+        
+        return factionColors[factionId] || "#FFFFFF";
+    }
+    
+    // Helper function to get adjacency color
+    function getAdjacencyColor(adjacency) {
+        const adjacencyColors = {
+            "FRONTLINE": "#FF6347",         // Tomato
+            "COMMAND_OPERATIONS": "#FFD700", // Gold
+            "REARGUARD": "#32CD32"          // Lime Green
+        };
+        
+        return adjacencyColors[adjacency] || "#FFFFFF";
+    }
+    
+    // Helper function to get net advantage color
+    function getNetAdvantageColor(netAdvantage) {
+        if (netAdvantage > 0.1) {
+            return "#FF4500";  // Red-Orange for Minmatar advantage
+        } else if (netAdvantage < -0.1) {
+            return "#FFD700";  // Gold for Amarr advantage
+        } else {
+            return "#FFFFFF";  // White for neutral
+        }
     }
     
     // Function to add event listeners to system links
