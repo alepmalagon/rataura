@@ -292,6 +292,12 @@ def handle_node_positions():
                     positions = json.load(f)
                 return jsonify({"positions": positions})
             else:
+                # Check if default positions exist
+                default_positions_file = os.path.join(positions_dir, f"{warzone_key}_default_positions.json")
+                if os.path.exists(default_positions_file):
+                    with open(default_positions_file, 'r') as f:
+                        positions = json.load(f)
+                    return jsonify({"positions": positions})
                 return jsonify({"positions": {}})
         
         elif request.method == 'POST':
@@ -303,6 +309,44 @@ def handle_node_positions():
     
     except Exception as e:
         logger.error(f"Error handling node positions: {e}", exc_info=True)
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/default_node_positions', methods=['GET', 'POST'])
+def handle_default_node_positions():
+    """
+    Store or retrieve default node positions for the graph.
+    
+    GET: Retrieve saved default node positions for a warzone
+    POST: Save current node positions as default for all users
+    """
+    try:
+        # Get warzone from request
+        warzone_key = request.args.get('warzone', 'amarr_minmatar')
+        
+        # Define the path to the default positions file
+        positions_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "positions")
+        os.makedirs(positions_dir, exist_ok=True)
+        default_positions_file = os.path.join(positions_dir, f"{warzone_key}_default_positions.json")
+        
+        if request.method == 'GET':
+            # Retrieve saved default positions
+            if os.path.exists(default_positions_file):
+                with open(default_positions_file, 'r') as f:
+                    positions = json.load(f)
+                return jsonify({"positions": positions})
+            else:
+                return jsonify({"positions": {}})
+        
+        elif request.method == 'POST':
+            # Save current positions as default
+            positions = request.json.get('positions', {})
+            with open(default_positions_file, 'w') as f:
+                json.dump(positions, f)
+            return jsonify({"success": True, "message": "Default positions saved successfully"})
+    
+    except Exception as e:
+        logger.error(f"Error handling default node positions: {e}", exc_info=True)
         return jsonify({"error": str(e)})
 
 
