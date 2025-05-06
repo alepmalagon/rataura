@@ -166,6 +166,7 @@ $(document).ready(function() {
                             
                             // Show save positions button
                             $('#save-positions-btn').show();
+                            $('#save-default-positions-btn').show();
                         }
                     },
                     error: function(xhr, status, error) {
@@ -209,6 +210,7 @@ $(document).ready(function() {
                             
                             // Show save positions button
                             $('#save-positions-btn').show();
+                            $('#save-default-positions-btn').show();
                         }
                     },
                     error: function(xhr, status, error) {
@@ -276,6 +278,60 @@ $(document).ready(function() {
                 
                 // Show error message
                 $('#error-container').text('Error saving positions: ' + error).show();
+            }
+        });
+    });
+    
+    // Handle save default positions button click
+    $('#save-default-positions-btn').click(function() {
+        if (!cy) {
+            return; // No graph to save
+        }
+        
+        // Show loading indicator
+        $('#loading').show();
+        
+        // Get current positions of all nodes
+        const positions = {};
+        cy.nodes().forEach(function(node) {
+            positions[node.id()] = {
+                x: node.position('x'),
+                y: node.position('y')
+            };
+        });
+        
+        // Get selected warzone
+        const warzone = $('#graph-warzone-select').val();
+        
+        // Save positions as default to server
+        $.ajax({
+            url: '/api/default_node_positions',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                positions: positions
+            }),
+            success: function(response) {
+                // Hide loading indicator
+                $('#loading').hide();
+                
+                if (response.error) {
+                    // Show error message
+                    $('#error-container').text(response.error).show();
+                } else {
+                    // Show success message
+                    $('#success-message').text('Default node positions saved for all users!').show();
+                    setTimeout(function() {
+                        $('#success-message').fadeOut();
+                    }, 3000);
+                }
+            },
+            error: function(xhr, status, error) {
+                // Hide loading indicator
+                $('#loading').hide();
+                
+                // Show error message
+                $('#error-container').text('Error saving default positions: ' + error).show();
             }
         });
     });
