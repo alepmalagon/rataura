@@ -14,6 +14,29 @@ Rataura is a Discord bot and Livekit agent that allows users to interact with EV
 - Access to EVE Online ESI API data
 - Support for both public and authenticated ESI endpoints
 - Conversational interface for exploring EVE Online game data
+- Real-time market data analysis
+- Character and corporation information retrieval
+- Fleet warfare system information
+- Interactive voice commands via Livekit
+
+## Project Structure
+
+The project is organized into two main components:
+
+### Rataura
+The main application with the following modules:
+- `discord`: Discord bot integration
+- `esi`: EVE Online ESI API client and endpoints
+- `livekit_agent`: Livekit agent implementation
+- `llm`: Large Language Model integration
+- `utils`: Utility functions and helpers
+
+### Eve Wiggin
+A companion module that provides:
+- Data visualization for EVE Online data
+- Web interface for data exploration
+- Mock data for testing
+- Position tracking and analysis
 
 ## ESI API Endpoints
 
@@ -25,7 +48,9 @@ The bot provides access to various EVE Online ESI API endpoints, including:
 - **Universe**: Game universe information (systems, regions, etc.)
 - **Market**: Market data (orders, prices, etc.)
 - **Dogma**: Game mechanics information
-- And more
+- **Fleet**: Fleet composition and management
+- **Location**: Character and ship locations
+- **Industry**: Manufacturing and research data
 
 ## Installation
 
@@ -92,6 +117,12 @@ python -m rataura
 python -m rataura.livekit_agent.run
 ```
 
+### Using the EVE Wiggin Web Interface
+
+```bash
+python -m eve_wiggin.web.app
+```
+
 ## Development
 
 ```bash
@@ -100,12 +131,37 @@ pip install -r requirements-dev.txt
 
 # Run tests
 pytest
+
+# Run linting
+flake8 rataura eve_wiggin
+
+# Run type checking
+mypy rataura eve_wiggin
 ```
 
 ## Dependencies
 
-This project uses Pydantic v2, which requires the `pydantic-settings` package for the `BaseSettings` functionality. Make sure to install all dependencies from the requirements.txt file.
+This project uses:
+- **Livekit Agents 1.0**: For conversational agent capabilities
+- **Discord.py**: For Discord integration
+- **Pydantic v2**: For data validation and settings management (requires `pydantic-settings` package)
+- **OpenAI and Google Generative AI**: For LLM integration
+- **Requests and aiohttp**: For API communication
+- **Loguru**: For enhanced logging
+
+Make sure to install all dependencies from the requirements.txt file.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
