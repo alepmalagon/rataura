@@ -48,6 +48,10 @@ The agent provides access to various EVE Online ESI API endpoints, including:
 - **System Adjacency Analysis**: Identifies frontline, command operations, and rearguard systems
 - **Visualization**: Color-coded visualization of warzone systems and statistics
 - **Web Interface**: Browser-based dashboard for easy access and analysis
+- **Interactive System Graph**: Visual representation of system connections with node positioning
+- **System Info Cards**: Hover over systems to view detailed information
+- **Capture Effort Analysis**: Visualization of the effort required to capture systems
+- **Pie Charts**: Visual representation of systems controlled and contested systems
 
 ## Installation
 
@@ -180,6 +184,15 @@ Systems in faction warfare have three adjacency types that determine how quickly
 
 The adjacency type of a system is determined by its position relative to enemy territory and can change as the warzone evolves.
 
+### Capture Effort Analysis
+
+EVE Wiggin includes a capture effort analyzer that helps players understand:
+
+- The relative effort required to capture different systems
+- How system adjacency affects capture rates
+- Strategic importance of systems based on their position and connections
+- Visualization of capture effort through color-coded indicators
+
 ### Faction Warfare Systems Filtering
 
 The repository includes scripts for filtering faction warfare systems:
@@ -187,6 +200,25 @@ The repository includes scripts for filtering faction warfare systems:
 - `filter_fw_systems.py`: Filters systems for each warzone
 - `examine_filtered_pickles.py`: Verifies filtered data
 - `update_web_visualizer.py`: Updates the web visualizer to use filtered data
+
+## Web Interface Features
+
+The EVE Wiggin web interface provides several visualization tools:
+
+### System Graph
+
+- Interactive network graph showing system connections
+- Color-coded nodes representing system ownership and status
+- Manual node positioning for better visualization
+- System info cards that appear on hover
+- Adjustable graph height for better visibility
+
+### Statistics Visualization
+
+- Hollow pie charts showing systems controlled by each faction
+- Contested systems visualization with appropriate faction colors
+- System cards with detailed information about each system
+- Real-time data updates from the EVE Online API
 
 ## Docker Deployment
 
@@ -264,6 +296,8 @@ This project uses:
 - Livekit Agents 1.0 for conversational AI
 - Discord.py for Discord integration
 - Flask for the EVE Wiggin web interface
+- NetworkX for system graph visualization
+- Plotly for interactive charts
 - Various EVE Online API clients
 
 Make sure to install all dependencies from the requirements.txt file.
@@ -275,6 +309,7 @@ Make sure to install all dependencies from the requirements.txt file.
 - Enhanced conversation history management
 - More sophisticated query understanding
 - Integration with additional EVE Online data sources
+- Voice mode with different LLM models for voice and text interactions
 
 ### Planned for EVE Wiggin
 - Interactive map with system connections
@@ -283,6 +318,7 @@ Make sure to install all dependencies from the requirements.txt file.
 - Alert system for key systems at risk
 - Mobile-responsive web interface
 - User accounts for personalized alerts
+- Advanced capture effort prediction algorithms
 
 ## Contributing
 
