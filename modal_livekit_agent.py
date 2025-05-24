@@ -125,7 +125,7 @@ def run_standalone_worker():
     timeout=30,
 )
 
-@app.fastapi_endpoint(method="POST")  # Updated from web_endpoint to fastapi_endpoint
+@web_endpoint(method="POST")  # Updated from web_endpoint to fastapi_endpoint
 
 def create_room(request):
     """Create a new LiveKit room and return the room details."""
