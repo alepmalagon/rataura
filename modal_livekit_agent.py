@@ -7,7 +7,7 @@ This script demonstrates how to deploy the Rataura LiveKit agent on Modal's serv
 import os
 import sys
 import time
-from modal import App, Image, Secret, method, web_endpoint
+from modal import App, Image, Secret, method, web_endpoint, Period
 
 # Create a Modal app
 app = App("rataura-livekit-agent")
@@ -109,6 +109,34 @@ def run_standalone_worker():
         )
     )
 
+# Define a function that will be automatically started when the app is deployed
+@app.function(
+    image=image,
+    secrets=[
+        Secret.from_name("livekit-secrets"),
+        Secret.from_name("openai-api-key"),
+        Secret.from_name("google-api-key"),
+        Secret.from_name("eve-esi-secrets"),
+    ],
+    timeout=3600,  # 1 hour timeout
+    min_containers=1,  # Keep one instance warm to reduce cold start times
+    schedule=Period(minutes=5),  # Restart every 5 minutes to ensure it's always running
+)
+def keep_worker_running():
+    """Ensure the LiveKit worker is always running by starting it periodically."""
+    from livekit.agents import WorkerOptions, cli
+    from rataura.livekit_agent.agent import entrypoint, prewarm
+    
+    print("Starting LiveKit worker...")
+    
+    # Run the LiveKit worker
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            prewarm_fnc=prewarm,
+        )
+    )
+
 # Define a web endpoint that can be used to create new LiveKit rooms
 @app.function(
     image=image,
@@ -154,6 +182,28 @@ def create_room(request):
         "room_name": room_name,
         "room_id": room.sid,
         "user_token": token,
+    }
+
+# Define a web endpoint to manually start the worker
+@app.function(
+    image=image,
+    secrets=[
+        Secret.from_name("livekit-secrets"),
+        Secret.from_name("openai-api-key"),
+        Secret.from_name("google-api-key"),
+        Secret.from_name("eve-esi-secrets"),
+    ],
+    timeout=30,
+)
+@web_endpoint(method="POST")
+def start_worker(request):
+    """Start the LiveKit worker manually via a web endpoint."""
+    # Start the worker in a separate container
+    run_standalone_worker.spawn()
+    
+    return {
+        "status": "success",
+        "message": "LiveKit worker started successfully",
     }
 
 if __name__ == "__main__":
