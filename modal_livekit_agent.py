@@ -5,6 +5,7 @@ This script demonstrates how to deploy the Rataura LiveKit agent on Modal's serv
 """
 
 import os
+import sys
 import time
 from modal import App, Image, Secret, method, web_endpoint
 
@@ -32,13 +33,7 @@ image = (
         # Discord integration
         "discord.py>=2.0.0",
     )
-    # Copy the rataura package to the image instead of installing it
-    .copy("./rataura", "/root/rataura")
 )
-
-# Add the rataura package to the Python path
-import sys
-sys.path.append("/root")
 
 # Define the LiveKit agent class that will run on Modal
 @app.cls(

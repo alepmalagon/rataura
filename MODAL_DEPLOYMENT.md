@@ -59,11 +59,15 @@ Create a secret named `eve-esi-secrets` with any credentials needed for the EVE 
 
 2. Copy the `modal_livekit_agent.py` file to the root of the repository.
 
-3. Make sure the `rataura` package directory is in the repository root.
+3. Make sure the `rataura` package is properly installed or available in your Python path.
 
 4. Deploy the app to Modal:
    ```bash
+   # For script mode (absolute imports)
    modal deploy modal_livekit_agent.py
+   
+   # For module mode (relative imports)
+   modal deploy -m rataura.modal_livekit_agent
    ```
 
 ## Usage
@@ -118,26 +122,21 @@ Modal automatically scales your application based on demand. You can adjust the 
 min_containers=1  # Keep one instance warm
 ```
 
-## Package Installation
+## Package Handling
 
-The Modal app copies the `rataura` package to the container instead of installing it via pip. This is done using the `.copy()` method in the Image definition:
+Modal automatically mounts local Python packages that you import in your code. This is enabled by default and makes it easy to get started with Modal. Here's how it works:
+
+1. Modal mounts local Python packages that you have imported but are not installed globally on your system.
+2. All Python packages in site-packages are excluded from automounting (like those in virtual environments).
+3. Non-Python files are automounted only if they are located in the same directory or subdirectory of a Python package.
+
+For the Rataura LiveKit agent, Modal will automatically mount the `rataura` package when you import it in your code:
 
 ```python
-image = (
-    Image.debian_slim()
-    .pip_install(
-        # Dependencies...
-    )
-    # Copy the rataura package to the image
-    .copy("./rataura", "/root/rataura")
-)
-
-# Add the rataura package to the Python path
-import sys
-sys.path.append("/root")
+from rataura.livekit_agent.agent import entrypoint, prewarm
 ```
 
-This approach avoids the need for a proper package installation and works well for serverless deployments.
+This means you don't need to explicitly copy or install the package in the container.
 
 ## Web Endpoints
 
@@ -168,7 +167,7 @@ You can monitor your Modal app in the Modal dashboard. The dashboard provides lo
 
 4. **GPU Availability**: If you're using GPUs, make sure the GPU type you've selected is available in your Modal account tier.
 
-5. **Package Import Issues**: If you encounter import errors for the `rataura` package, make sure the package directory is correctly copied to the container and the Python path is updated.
+5. **Package Import Issues**: If you encounter import errors for the `rataura` package, make sure the package is properly installed or available in your Python path. You can also try running Modal in module mode with `modal run -m rataura.modal_livekit_agent`.
 
 ### Getting Help
 
