@@ -72,15 +72,37 @@ Create a secret named `eve-esi-secrets` with any credentials needed for the EVE 
 
 ## Usage
 
-### Running the LiveKit Worker
+### Automatic Worker Execution
 
-To run the LiveKit worker as a standalone process:
+The LiveKit worker is automatically started when the app is deployed, thanks to the scheduled function `keep_worker_running`. This function:
+
+1. Runs immediately when the app is deployed
+2. Restarts every 5 minutes to ensure the worker is always running
+3. Uses the same LiveKit agent entrypoint as the manual methods
+
+You can monitor the worker's activity in the Modal dashboard under the "App" section.
+
+### Manual Worker Execution
+
+If you need to manually start the LiveKit worker, you can use one of these methods:
+
+#### Method 1: Using the Modal CLI
 
 ```bash
 modal run modal_livekit_agent.py::run_standalone_worker
 ```
 
 This will start a LiveKit worker that connects to your LiveKit server and waits for room connections.
+
+#### Method 2: Using the Web Endpoint
+
+You can also start the worker by making a POST request to the `start_worker` endpoint:
+
+```bash
+curl -X POST https://alepmalagon--rataura-livekit-agent-start-worker.modal.run
+```
+
+This will spawn a new worker container and return a success message.
 
 ### Creating LiveKit Rooms via API
 
@@ -122,6 +144,19 @@ Modal automatically scales your application based on demand. You can adjust the 
 min_containers=1  # Keep one instance warm
 ```
 
+### Worker Schedule
+
+The worker is configured to restart every 5 minutes to ensure it's always running. You can adjust this interval by changing the `Period` parameter in the `keep_worker_running` function:
+
+```python
+@app.function(
+    # ... other parameters ...
+    schedule=Period(minutes=5),  # Restart every 5 minutes
+)
+def keep_worker_running():
+    # ... function implementation ...
+```
+
 ## Package Handling
 
 
@@ -159,6 +194,14 @@ def create_room(request):
 
 You can monitor your Modal app in the Modal dashboard. The dashboard provides logs, metrics, and other information about your app.
 
+To check if the LiveKit worker is running:
+
+1. Go to the Modal dashboard
+2. Navigate to the "Apps" section
+3. Select your app (rataura-livekit-agent)
+4. Look for the `keep_worker_running` function in the list of functions
+5. Check the logs to see if the worker is running properly
+
 ## Troubleshooting
 
 ### Common Issues
@@ -172,6 +215,11 @@ You can monitor your Modal app in the Modal dashboard. The dashboard provides lo
 4. **GPU Availability**: If you're using GPUs, make sure the GPU type you've selected is available in your Modal account tier.
 
 5. **Package Import Issues**: If you encounter import errors for the `rataura` package, make sure the package is properly installed or available in your Python path. You can also try running Modal in module mode with `modal run -m rataura.modal_livekit_agent`.
+
+6. **Worker Not Running**: If the LiveKit worker doesn't seem to be running:
+   - Check the logs for the `keep_worker_running` function in the Modal dashboard
+   - Try manually starting the worker using the `start_worker` endpoint
+   - Make sure all required secrets are properly configured
 
 ### Getting Help
 
