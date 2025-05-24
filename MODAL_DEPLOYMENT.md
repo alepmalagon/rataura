@@ -59,7 +59,9 @@ Create a secret named `eve-esi-secrets` with any credentials needed for the EVE 
 
 2. Copy the `modal_livekit_agent.py` file to the root of the repository.
 
-3. Deploy the app to Modal:
+3. Make sure the `rataura` package directory is in the repository root.
+
+4. Deploy the app to Modal:
    ```bash
    modal deploy modal_livekit_agent.py
    ```
@@ -116,6 +118,27 @@ Modal automatically scales your application based on demand. You can adjust the 
 min_containers=1  # Keep one instance warm
 ```
 
+## Package Installation
+
+The Modal app copies the `rataura` package to the container instead of installing it via pip. This is done using the `.copy()` method in the Image definition:
+
+```python
+image = (
+    Image.debian_slim()
+    .pip_install(
+        # Dependencies...
+    )
+    # Copy the rataura package to the image
+    .copy("./rataura", "/root/rataura")
+)
+
+# Add the rataura package to the Python path
+import sys
+sys.path.append("/root")
+```
+
+This approach avoids the need for a proper package installation and works well for serverless deployments.
+
 ## Web Endpoints
 
 The Modal app uses the `web_endpoint` decorator to create HTTP endpoints. Note that in Modal's 1.0 migration, this decorator is imported directly from the `modal` module:
@@ -145,6 +168,8 @@ You can monitor your Modal app in the Modal dashboard. The dashboard provides lo
 
 4. **GPU Availability**: If you're using GPUs, make sure the GPU type you've selected is available in your Modal account tier.
 
+5. **Package Import Issues**: If you encounter import errors for the `rataura` package, make sure the package directory is correctly copied to the container and the Python path is updated.
+
 ### Getting Help
 
 If you encounter any issues, you can:
@@ -156,4 +181,3 @@ If you encounter any issues, you can:
 ## Advanced Configuration
 
 For more advanced configuration options, refer to the [Modal documentation](https://modal.com/docs) and the [LiveKit Agents documentation](https://docs.livekit.io/agents/).
-
