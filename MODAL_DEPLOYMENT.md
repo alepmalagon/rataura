@@ -116,6 +116,22 @@ Modal automatically scales your application based on demand. You can adjust the 
 min_containers=1  # Keep one instance warm
 ```
 
+
+## Web Endpoints
+
+The Modal app uses the `web_endpoint` decorator to create HTTP endpoints. Note that in Modal's 1.0 migration, this decorator is imported directly from the `modal` module:
+
+```python
+from modal import web_endpoint
+
+@app.function(...)
+@web_endpoint(method="POST")
+def create_room(request):
+    # Function implementation
+```
+
+=======
+
 ## Monitoring
 
 You can monitor your Modal app in the Modal dashboard. The dashboard provides logs, metrics, and other information about your app.
@@ -143,3 +159,4 @@ If you encounter any issues, you can:
 ## Advanced Configuration
 
 For more advanced configuration options, refer to the [Modal documentation](https://modal.com/docs) and the [LiveKit Agents documentation](https://docs.livekit.io/agents/).
+
