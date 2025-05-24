@@ -31,10 +31,16 @@ image = (
         # Utilities
         "python-dotenv>=0.19.0",
         "loguru>=0.5.3",
+        # Discord integration
+        "discord.py>=2.0.0",
     )
-    # Install the Rataura package from the current directory
-    .pip_install(".")
+    # Copy the rataura package to the image instead of installing it
+    .copy("./rataura", "/root/rataura")
 )
+
+# Add the rataura package to the Python path
+import sys
+sys.path.append("/root")
 
 # Define the LiveKit agent class that will run on Modal
 @app.cls(
@@ -164,4 +170,3 @@ def create_room(request):
 if __name__ == "__main__":
     # When run directly, this will deploy the app to Modal
     app.run()
-
