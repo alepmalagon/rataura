@@ -6,7 +6,7 @@ This script demonstrates how to deploy the Rataura LiveKit agent on Modal's serv
 
 import os
 import time  # Added import for time.time() used in create_room
-from modal import App, Image, Secret, method
+from modal import App, Image, Secret, method, web_endpoint  # Import web_endpoint directly
 
 # Create a Modal app
 app = App("rataura-livekit-agent")
@@ -114,7 +114,7 @@ def run_standalone_worker():
     secrets=[Secret.from_name("livekit-secrets")],
     timeout=30,
 )
-@app.fastapi_endpoint(method="POST")  # Updated from web_endpoint to fastapi_endpoint
+@web_endpoint(method="POST")  # Use the imported web_endpoint decorator instead of app.fastapi_endpoint
 def create_room(request):
     """Create a new LiveKit room and return the room details."""
     import json
