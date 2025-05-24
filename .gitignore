@@ -112,3 +112,4 @@ venv.bak/
 logs/
 *.db
 exports.env
+exports.env
