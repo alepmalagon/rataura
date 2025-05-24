@@ -124,6 +124,8 @@ min_containers=1  # Keep one instance warm
 
 ## Package Handling
 
+
+
 Modal automatically mounts local Python packages that you import in your code. This is enabled by default and makes it easy to get started with Modal. Here's how it works:
 
 1. Modal mounts local Python packages that you have imported but are not installed globally on your system.
@@ -150,6 +152,8 @@ from modal import web_endpoint
 def create_room(request):
     # Function implementation
 ```
+
+=======
 
 ## Monitoring
 
