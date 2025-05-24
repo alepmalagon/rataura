@@ -118,6 +118,7 @@ Modal automatically scales your application based on demand. You can adjust the 
 min_containers=1  # Keep one instance warm
 ```
 
+
 ## Package Installation
 
 The Modal app copies the `rataura` package to the container instead of installing it via pip. This is done using the `.copy()` method in the Image definition:
@@ -151,6 +152,8 @@ from modal import web_endpoint
 def create_room(request):
     # Function implementation
 ```
+
+=======
 
 ## Monitoring
 
