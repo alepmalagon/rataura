@@ -96,13 +96,13 @@ By default, the Modal app uses NVIDIA T4 GPUs. You can adjust the GPU type in th
 
 ```python
 # For T4 GPU (default)
-gpu=gpu.T4()
+gpu="T4"
 
 # For A10G GPU (more powerful)
-gpu=gpu.A10G()
+gpu="A10G"
 
 # For H100 GPU (most powerful)
-gpu=gpu.H100()
+gpu="H100"
 
 # For no GPU
 gpu=None
@@ -110,10 +110,10 @@ gpu=None
 
 ### Scaling
 
-Modal automatically scales your application based on demand. You can adjust the `keep_warm` parameter to keep a certain number of instances warm to reduce cold start times:
+Modal automatically scales your application based on demand. You can adjust the `min_containers` parameter to keep a certain number of instances warm to reduce cold start times:
 
 ```python
-keep_warm=1  # Keep one instance warm
+min_containers=1  # Keep one instance warm
 ```
 
 ## Monitoring
@@ -124,7 +124,7 @@ You can monitor your Modal app in the Modal dashboard. The dashboard provides lo
 
 ### Common Issues
 
-1. **Cold Start Latency**: If you experience high latency when starting new LiveKit rooms, consider increasing the `keep_warm` parameter.
+1. **Cold Start Latency**: If you experience high latency when starting new LiveKit rooms, consider increasing the `min_containers` parameter.
 
 2. **Missing Secrets**: If you see errors about missing environment variables, make sure you've set up all the required secrets in the Modal dashboard.
 
@@ -143,4 +143,3 @@ If you encounter any issues, you can:
 ## Advanced Configuration
 
 For more advanced configuration options, refer to the [Modal documentation](https://modal.com/docs) and the [LiveKit Agents documentation](https://docs.livekit.io/agents/).
-
