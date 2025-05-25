@@ -59,15 +59,11 @@ Create a secret named `eve-esi-secrets` with any credentials needed for the EVE 
 
 2. Copy the `modal_livekit_agent.py` file to the root of the repository.
 
-3. Make sure the `rataura` package is properly installed or available in your Python path.
+3. Make sure the `rataura` package directory is in the repository root.
 
 4. Deploy the app to Modal:
    ```bash
-   # For script mode (absolute imports)
    modal deploy modal_livekit_agent.py
-   
-   # For module mode (relative imports)
-   modal deploy -m rataura.modal_livekit_agent
    ```
 
 ## Usage
@@ -159,21 +155,36 @@ def keep_worker_running():
 
 ## Package Handling
 
+The Modal app explicitly adds the `rataura` package to the container image and modifies the Python path to make it importable. This is done using the `.add_local_dir()` method in the Image definition:
 
-
-Modal automatically mounts local Python packages that you import in your code. This is enabled by default and makes it easy to get started with Modal. Here's how it works:
-
-1. Modal mounts local Python packages that you have imported but are not installed globally on your system.
-2. All Python packages in site-packages are excluded from automounting (like those in virtual environments).
-3. Non-Python files are automounted only if they are located in the same directory or subdirectory of a Python package.
-
-For the Rataura LiveKit agent, Modal will automatically mount the `rataura` package when you import it in your code:
 
 ```python
+image = (
+    Image.debian_slim()
+    .pip_install(
+        # Dependencies...
+    )
+    # Explicitly add the rataura package to the image
+    .add_local_dir("./rataura", "/root/rataura")
+)
+
+# Add the rataura package to the Python path
+import sys
+sys.path.append("/root")
+```
+
+Additionally, each function that needs to import from the `rataura` package adds the `/root` directory to the Python path:
+
+```python
+# Add the rataura package to the Python path
+import sys
+sys.path.append("/root")
+
+# Now import from rataura
 from rataura.livekit_agent.agent import entrypoint, prewarm
 ```
 
-This means you don't need to explicitly copy or install the package in the container.
+This approach ensures that the `rataura` package is available to all functions in the Modal app, regardless of how they're executed.
 
 ## Web Endpoints
 
@@ -214,7 +225,11 @@ To check if the LiveKit worker is running:
 
 4. **GPU Availability**: If you're using GPUs, make sure the GPU type you've selected is available in your Modal account tier.
 
-5. **Package Import Issues**: If you encounter import errors for the `rataura` package, make sure the package is properly installed or available in your Python path. You can also try running Modal in module mode with `modal run -m rataura.modal_livekit_agent`.
+5. **Package Import Issues**: If you encounter import errors for the `rataura` package:
+   - Make sure the `rataura` package directory is in the repository root
+   - Check that the `.add_local_dir("./rataura", "/root/rataura")` line is present in the Image definition
+   - Verify that `sys.path.append("/root")` is called before importing from `rataura`
+   - Check the logs for any Python import errors
 
 6. **Worker Not Running**: If the LiveKit worker doesn't seem to be running:
    - Check the logs for the `keep_worker_running` function in the Modal dashboard
