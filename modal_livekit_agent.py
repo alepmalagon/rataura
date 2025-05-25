@@ -33,13 +33,15 @@ image = (
         # Discord integration
         "discord.py>=2.0.0",
     )
-    # Explicitly add the rataura package to the image
-    .add_local_dir("./rataura", "/root/rataura")
+    # Copy the rataura package to the container
+    .run_commands(
+        "mkdir -p /root/rataura",
+        "cp -r ./rataura/rataura /root/rataura/",
+        "cp -r ./rataura/requirements.txt /root/rataura/",
+        "cp -r ./rataura/README.md /root/rataura/",
+        "ls -la /root/rataura",
+    )
 )
-
-# Add the rataura package to the Python path
-import sys
-sys.path.append("/root")
 
 # Define the LiveKit agent class that will run on Modal
 @app.cls(
@@ -83,10 +85,20 @@ class RatauraLiveKitWorker:
         
         # Add the rataura package to the Python path
         import sys
-        sys.path.append("/root")
+        sys.path.insert(0, "/root")
+        
+        # Print the Python path for debugging
+        print(f"Python path: {sys.path}")
+        
+        # List the contents of the rataura directory for debugging
+        import os
+        print("Contents of /root/rataura:")
+        os.system("ls -la /root/rataura")
+        print("Contents of /root/rataura/rataura:")
+        os.system("ls -la /root/rataura/rataura")
         
         # Now import from rataura
-        from rataura.livekit_agent.agent import entrypoint, prewarm
+        from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
         
         # Run the LiveKit worker
         cli.run_app(
@@ -112,13 +124,23 @@ def run_standalone_worker():
     """Run the LiveKit worker as a standalone process."""
     # Add the rataura package to the Python path
     import sys
-    sys.path.append("/root")
+    sys.path.insert(0, "/root")
+    
+    # Print the Python path for debugging
+    print(f"Python path: {sys.path}")
+    
+    # List the contents of the rataura directory for debugging
+    import os
+    print("Contents of /root/rataura:")
+    os.system("ls -la /root/rataura")
+    print("Contents of /root/rataura/rataura:")
+    os.system("ls -la /root/rataura/rataura")
     
     # Now import from rataura
-    from livekit.agents import WorkerOptions, cli
-    from rataura.livekit_agent.agent import entrypoint, prewarm
+    from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
     
     # Run the LiveKit worker
+    from livekit.agents import WorkerOptions, cli
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
@@ -143,15 +165,25 @@ def keep_worker_running():
     """Ensure the LiveKit worker is always running by starting it periodically."""
     # Add the rataura package to the Python path
     import sys
-    sys.path.append("/root")
+    sys.path.insert(0, "/root")
     
-    # Now import from rataura
-    from livekit.agents import WorkerOptions, cli
-    from rataura.livekit_agent.agent import entrypoint, prewarm
+    # Print the Python path for debugging
+    print(f"Python path: {sys.path}")
+    
+    # List the contents of the rataura directory for debugging
+    import os
+    print("Contents of /root/rataura:")
+    os.system("ls -la /root/rataura")
+    print("Contents of /root/rataura/rataura:")
+    os.system("ls -la /root/rataura/rataura")
     
     print("Starting LiveKit worker...")
     
+    # Now import from rataura
+    from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+    
     # Run the LiveKit worker
+    from livekit.agents import WorkerOptions, cli
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,

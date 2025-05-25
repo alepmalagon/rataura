@@ -155,7 +155,7 @@ def keep_worker_running():
 
 ## Package Handling
 
-The Modal app explicitly adds the `rataura` package to the container image and modifies the Python path to make it importable. This is done using the `.add_local_dir()` method in the Image definition:
+The Modal app copies the `rataura` package to the container using shell commands. This is done using the `.run_commands()` method in the Image definition:
 
 ```python
 image = (
@@ -163,13 +163,15 @@ image = (
     .pip_install(
         # Dependencies...
     )
-    # Explicitly add the rataura package to the image
-    .add_local_dir("./rataura", "/root/rataura")
+    # Copy the rataura package to the container
+    .run_commands(
+        "mkdir -p /root/rataura",
+        "cp -r ./rataura/rataura /root/rataura/",
+        "cp -r ./rataura/requirements.txt /root/rataura/",
+        "cp -r ./rataura/README.md /root/rataura/",
+        "ls -la /root/rataura",
+    )
 )
-
-# Add the rataura package to the Python path
-import sys
-sys.path.append("/root")
 ```
 
 Additionally, each function that needs to import from the `rataura` package adds the `/root` directory to the Python path:
@@ -177,13 +179,13 @@ Additionally, each function that needs to import from the `rataura` package adds
 ```python
 # Add the rataura package to the Python path
 import sys
-sys.path.append("/root")
+sys.path.insert(0, "/root")
 
 # Now import from rataura
-from rataura.livekit_agent.agent import entrypoint, prewarm
+from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
 ```
 
-This approach ensures that the `rataura` package is available to all functions in the Modal app, regardless of how they're executed.
+Note that the import path is `rataura.rataura.livekit_agent.agent` because the `rataura` package has a nested structure with a `rataura` directory inside the `rataura` directory.
 
 ## Web Endpoints
 
@@ -224,8 +226,9 @@ To check if the LiveKit worker is running:
 
 5. **Package Import Issues**: If you encounter import errors for the `rataura` package:
    - Make sure the `rataura` package directory is in the repository root
-   - Check that the `.add_local_dir("./rataura", "/root/rataura")` line is present in the Image definition
-   - Verify that `sys.path.append("/root")` is called before importing from `rataura`
+   - Check the logs for the output of the `ls -la /root/rataura` command to verify the package was copied correctly
+   - Verify that `sys.path.insert(0, "/root")` is called before importing from `rataura`
+   - Make sure you're using the correct import path: `from rataura.rataura.livekit_agent.agent import entrypoint, prewarm`
    - Check the logs for any Python import errors
 
 6. **Worker Not Running**: If the LiveKit worker doesn't seem to be running:
