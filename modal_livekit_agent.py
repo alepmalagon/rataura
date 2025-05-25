@@ -35,13 +35,26 @@ image = (
         # Discord integration
         "discord.py>=2.0.0",
     )
-    # Copy the rataura package to the container
+    # Set up the rataura package in the container
     .run_commands(
+        # Create directories
         "mkdir -p /root/rataura",
-        "cp -r ./rataura/rataura /root/rataura/",
-        "cp -r ./rataura/requirements.txt /root/rataura/",
-        "cp -r ./rataura/README.md /root/rataura/",
-        "ls -la /root/rataura",
+        # Debug: List the current directory structure
+        "echo 'Current directory structure:'",
+        "ls -la",
+        "echo 'Contents of ./rataura:'",
+        "ls -la ./rataura || echo 'rataura directory not found'",
+        # Copy the rataura package to the container with error handling
+        "if [ -d './rataura/rataura' ]; then cp -r ./rataura/rataura /root/rataura/; else echo 'Directory ./rataura/rataura not found'; fi",
+        "if [ -f './rataura/requirements.txt' ]; then cp ./rataura/requirements.txt /root/rataura/; else echo 'File ./rataura/requirements.txt not found'; fi",
+        "if [ -f './rataura/README.md' ]; then cp ./rataura/README.md /root/rataura/; else echo 'File ./rataura/README.md not found'; fi",
+        # Alternative approach: Copy the entire rataura directory
+        "if [ -d './rataura' ]; then cp -r ./rataura /root/; else echo 'Directory ./rataura not found'; fi",
+        # Debug: List the contents of the destination directory
+        "echo 'Contents of /root/rataura:'",
+        "ls -la /root/rataura || echo '/root/rataura directory not found'",
+        "echo 'Contents of /root:'",
+        "ls -la /root",
     )
 )
 
@@ -95,13 +108,25 @@ class RatauraLiveKitWorker:
         
         # List the contents of the rataura directory for debugging
         import os
+        print("Contents of /root:")
+        os.system("ls -la /root")
         print("Contents of /root/rataura:")
-        os.system("ls -la /root/rataura")
-        print("Contents of /root/rataura/rataura:")
-        os.system("ls -la /root/rataura/rataura")
+        os.system("ls -la /root/rataura || echo '/root/rataura not found'")
         
-        # Now import from rataura
-        from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+        # Try different import paths
+        try:
+            print("Trying import path: rataura.rataura.livekit_agent.agent")
+            from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+            print("Import successful!")
+        except ImportError as e1:
+            print(f"First import attempt failed: {e1}")
+            try:
+                print("Trying import path: rataura.livekit_agent.agent")
+                from rataura.livekit_agent.agent import entrypoint, prewarm
+                print("Import successful!")
+            except ImportError as e2:
+                print(f"Second import attempt failed: {e2}")
+                raise ImportError(f"Could not import the rataura package. Errors: {e1}, {e2}")
         
         # Run the LiveKit worker
         cli.run_app(
@@ -135,13 +160,25 @@ def run_standalone_worker():
     
     # List the contents of the rataura directory for debugging
     import os
+    print("Contents of /root:")
+    os.system("ls -la /root")
     print("Contents of /root/rataura:")
-    os.system("ls -la /root/rataura")
-    print("Contents of /root/rataura/rataura:")
-    os.system("ls -la /root/rataura/rataura")
+    os.system("ls -la /root/rataura || echo '/root/rataura not found'")
     
-    # Now import from rataura
-    from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+    # Try different import paths
+    try:
+        print("Trying import path: rataura.rataura.livekit_agent.agent")
+        from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+        print("Import successful!")
+    except ImportError as e1:
+        print(f"First import attempt failed: {e1}")
+        try:
+            print("Trying import path: rataura.livekit_agent.agent")
+            from rataura.livekit_agent.agent import entrypoint, prewarm
+            print("Import successful!")
+        except ImportError as e2:
+            print(f"Second import attempt failed: {e2}")
+            raise ImportError(f"Could not import the rataura package. Errors: {e1}, {e2}")
     
     # Run the LiveKit worker
     from livekit.agents import WorkerOptions, cli
@@ -176,15 +213,27 @@ def keep_worker_running():
     
     # List the contents of the rataura directory for debugging
     import os
+    print("Contents of /root:")
+    os.system("ls -la /root")
     print("Contents of /root/rataura:")
-    os.system("ls -la /root/rataura")
-    print("Contents of /root/rataura/rataura:")
-    os.system("ls -la /root/rataura/rataura")
+    os.system("ls -la /root/rataura || echo '/root/rataura not found'")
     
     print("Starting LiveKit worker...")
     
-    # Now import from rataura
-    from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+    # Try different import paths
+    try:
+        print("Trying import path: rataura.rataura.livekit_agent.agent")
+        from rataura.rataura.livekit_agent.agent import entrypoint, prewarm
+        print("Import successful!")
+    except ImportError as e1:
+        print(f"First import attempt failed: {e1}")
+        try:
+            print("Trying import path: rataura.livekit_agent.agent")
+            from rataura.livekit_agent.agent import entrypoint, prewarm
+            print("Import successful!")
+        except ImportError as e2:
+            print(f"Second import attempt failed: {e2}")
+            raise ImportError(f"Could not import the rataura package. Errors: {e1}, {e2}")
     
     # Run the LiveKit worker
     from livekit.agents import WorkerOptions, cli
