@@ -33,7 +33,13 @@ image = (
         # Discord integration
         "discord.py>=2.0.0",
     )
+    # Explicitly add the rataura package to the image
+    .add_local_dir("./rataura", "/root/rataura")
 )
+
+# Add the rataura package to the Python path
+import sys
+sys.path.append("/root")
 
 # Define the LiveKit agent class that will run on Modal
 @app.cls(
@@ -74,6 +80,12 @@ class RatauraLiveKitWorker:
         """Run the LiveKit worker."""
         # Import here to ensure imports happen in the Modal container
         from livekit.agents import WorkerOptions, cli
+        
+        # Add the rataura package to the Python path
+        import sys
+        sys.path.append("/root")
+        
+        # Now import from rataura
         from rataura.livekit_agent.agent import entrypoint, prewarm
         
         # Run the LiveKit worker
@@ -98,6 +110,11 @@ class RatauraLiveKitWorker:
 )
 def run_standalone_worker():
     """Run the LiveKit worker as a standalone process."""
+    # Add the rataura package to the Python path
+    import sys
+    sys.path.append("/root")
+    
+    # Now import from rataura
     from livekit.agents import WorkerOptions, cli
     from rataura.livekit_agent.agent import entrypoint, prewarm
     
@@ -124,6 +141,11 @@ def run_standalone_worker():
 )
 def keep_worker_running():
     """Ensure the LiveKit worker is always running by starting it periodically."""
+    # Add the rataura package to the Python path
+    import sys
+    sys.path.append("/root")
+    
+    # Now import from rataura
     from livekit.agents import WorkerOptions, cli
     from rataura.livekit_agent.agent import entrypoint, prewarm
     
