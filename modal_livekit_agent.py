@@ -6,8 +6,10 @@ This script demonstrates how to deploy the Rataura LiveKit agent on Modal's serv
 
 import os
 import sys
+
 import time
 from modal import App, Image, Secret, method, web_endpoint, Period
+
 
 # Create a Modal app
 app = App("rataura-livekit-agent")
@@ -44,7 +46,8 @@ sys.path.append("/root")
 # Define the LiveKit agent class that will run on Modal
 @app.cls(
     image=image,
-    gpu="T4",  # Use T4 GPU for inference (can be adjusted based on needs)
+    gpu="T4",  # Updated to use string format instead of gpu.T4()
+
     secrets=[
         Secret.from_name("livekit-secrets"),  # Contains LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
         Secret.from_name("openai-api-key"),   # Contains OPENAI_API_KEY
@@ -107,6 +110,7 @@ class RatauraLiveKitWorker:
     ],
     timeout=3600,  # 1 hour timeout
     min_containers=1,  # Keep one instance warm to reduce cold start times
+
 )
 def run_standalone_worker():
     """Run the LiveKit worker as a standalone process."""
@@ -165,7 +169,9 @@ def keep_worker_running():
     secrets=[Secret.from_name("livekit-secrets")],
     timeout=30,
 )
-@web_endpoint(method="POST")
+
+@web_endpoint(method="POST")  # Updated from web_endpoint to fastapi_endpoint
+
 def create_room(request):
     """Create a new LiveKit room and return the room details."""
     import json

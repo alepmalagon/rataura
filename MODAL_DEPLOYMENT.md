@@ -157,6 +157,7 @@ def keep_worker_running():
 
 The Modal app explicitly adds the `rataura` package to the container image and modifies the Python path to make it importable. This is done using the `.add_local_dir()` method in the Image definition:
 
+
 ```python
 image = (
     Image.debian_slim()
@@ -197,6 +198,8 @@ from modal import web_endpoint
 def create_room(request):
     # Function implementation
 ```
+
+=======
 
 ## Monitoring
 
