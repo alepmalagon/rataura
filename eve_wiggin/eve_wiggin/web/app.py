@@ -171,8 +171,15 @@ async def get_graph_data():
                 for node in graph.nodes:
                     if graph.nodes[node].get("solar_system_name") == system_name:
                         # Copy capture effort data to the warzone system
-                        system["system"]["capture_effort"] = graph.nodes[node].get("capture_effort", 0.0)
-                        system["system"]["capture_effort_category"] = graph.nodes[node].get("capture_effort_category", "Unknown")
+                        capture_effort = graph.nodes[node].get("capture_effort", 0.0)
+                        capture_category = graph.nodes[node].get("capture_effort_category", "Unknown")
+                        
+                        # Log the capture effort data being copied
+                        logger.debug(f"Copying capture effort for {system_name}: {capture_effort} ({capture_category})")
+                        
+                        # Update the system data
+                        system["system"]["capture_effort"] = capture_effort
+                        system["system"]["capture_effort_category"] = capture_category
                         break
             
             # Generate graph data for visualization
